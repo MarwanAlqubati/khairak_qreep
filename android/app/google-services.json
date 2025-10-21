@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1033167395771",
+    "project_id": "khairak-qreep",
+    "storage_bucket": "khairak-qreep.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1033167395771:android:eb12f81b17d1e1a3b9029e",
+        "android_client_info": {
+          "package_name": "com.exakhairak_qreep"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBou_PzAPQhHc3EU1JbLqI1X3bQEuLBDNQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

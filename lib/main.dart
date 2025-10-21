@@ -5,8 +5,11 @@ import 'login.dart';
 import 'resetpassword.dart';
 import 'admin.dart';
 import 'home.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(KhairakQareebApp());
 }
 
