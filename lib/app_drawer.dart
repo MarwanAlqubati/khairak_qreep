@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'login.dart';
 import 'settings_page.dart'; // ✅ استدعاء صفحة الإعدادات
 import 'about_page.dart'; // ✅ صفحة حول التطبيق
+import 'package:exakhairak_qreep/Services/auth_service.dart';
 
 class AppDrawer extends StatelessWidget {
   final String userName;
@@ -118,20 +119,31 @@ class AppDrawer extends StatelessWidget {
               "تسجيل الخروج",
               style: TextStyle(fontSize: 18, color: Colors.black),
             ),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("تم تسجيل الخروج بنجاح"),
-                  backgroundColor: Colors.teal,
-                ),
-              );
-              Future.delayed(const Duration(seconds: 1), () {
+            onTap: () async {
+              try {
+                await AuthService.signOut();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("تم تسجيل الخروج بنجاح"),
+                    backgroundColor: Colors.teal,
+                  ),
+                );
+
+                await Future.delayed(const Duration(seconds: 1));
+
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => LoginPage()),
                   (route) => false,
                 );
-              });
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("حدث خطأ أثناء تسجيل الخروج: $e"),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
             },
           ),
         ],

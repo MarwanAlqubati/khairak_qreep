@@ -1,9 +1,78 @@
+import 'package:exakhairak_qreep/Services/auth_service.dart';
+import 'package:exakhairak_qreep/Services/request_service.dart';
 import 'package:flutter/material.dart';
-import 'beneficiary_page.dart';
-import 'chat_page.dart'; // 🔹 تأكدي من وجود هذا الملف (صفحة المحادثة)
+import 'package:exakhairak_qreep/models/app_Request.dart';
 
-class TrackRequestsPage extends StatelessWidget {
+import 'chat_page.dart';
+import 'beneficiary_page.dart';
+
+class TrackRequestsPage extends StatefulWidget {
   const TrackRequestsPage({super.key});
+
+  @override
+  State<TrackRequestsPage> createState() => _TrackRequestsPageState();
+}
+
+class _TrackRequestsPageState extends State<TrackRequestsPage> {
+  bool _isLoading = true;
+  List<RequestWithDonor> _requests = [];
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequests();
+  }
+
+  Future<void> _loadRequests() async {
+    try {
+      final user = AuthService.currentUser();
+      if (user == null) {
+        setState(() {
+          _errorMessage = "لم يتم العثور على المستخدم الحالي.";
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final requests = await RequestsService.getRequestsByNeedId(user.uid);
+      setState(() {
+        _requests = requests;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "حدث خطأ أثناء تحميل الطلبات: $e";
+        _isLoading = false;
+      });
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case '0':
+        return Colors.orange;
+      case '1':
+        return Colors.blue;
+      case '2':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case '0':
+        return 'قيد المراجعة';
+      case '1':
+        return 'قيد التنفيذ';
+      case '2':
+        return 'تم الاستلام';
+      default:
+        return 'غير معروف';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,21 +80,20 @@ class TrackRequestsPage extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
+            colors: [Colors.teal.shade50, Colors.white],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.teal.shade50, Colors.white],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // ✅ زر الرجوع + اسم المستفيد (بالتصميم الموحّد)
+              // ✅ الهيدر
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // 🔹 زر الرجوع بنفس التصميم الموحد
                     ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pushReplacement(
@@ -45,57 +113,60 @@ class TrackRequestsPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                            horizontal: 18, vertical: 10),
                       ),
                     ),
-
-                    // 🔹 اسم المستفيد
-                    const Text(
-                      "المستفيد: 001",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
-                    ),
+                    const Icon(Icons.volunteer_activism,
+                        size: 60, color: Colors.teal),
                   ],
                 ),
               ),
-
-              // 🔹 الشعار
-              const Icon(Icons.volunteer_activism,
-                  size: 70, color: Colors.teal),
-              const SizedBox(height: 20),
-
-              // 🔹 العنوان
+              const SizedBox(height: 10),
               const Text(
                 "متابعة الطلبات",
                 style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber,
+                ),
               ),
               const SizedBox(height: 20),
 
-              // 🔹 مثال على الطلبات (لاحقاً تُعرض من قاعدة البيانات)
               Expanded(
-                child: ListView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  children: [
-                    _buildRequestCard(
-                      context,
-                      title: "طلب مالي",
-                      status: "تم الاستلام",
-                    ),
-                    const SizedBox(height: 16),
-                    _buildRequestCard(
-                      context,
-                      title: "طلب ملابس",
-                      status: "قيد التسليم",
-                    ),
-                  ],
-                ),
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Colors.teal),
+                      )
+                    : _errorMessage != null
+                        ? Center(
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                  color: Colors.red, fontSize: 16),
+                            ),
+                          )
+                        : _requests.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  "لا توجد طلبات حتى الآن",
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 18),
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _loadRequests,
+                                color: Colors.teal,
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 10),
+                                  itemCount: _requests.length,
+                                  itemBuilder: (context, index) {
+                                    final req = _requests[index];
+
+                                    return _buildRequestCard(context, req);
+                                  },
+                                ),
+                              ),
               ),
             ],
           ),
@@ -104,49 +175,90 @@ class TrackRequestsPage extends StatelessWidget {
     );
   }
 
-  // 🔹 كارد الطلب الواحد
-  Widget _buildRequestCard(BuildContext context,
-      {required String title, required String status}) {
+  Widget _buildRequestCard(
+      BuildContext context, RequestWithDonor reqWithDonor) {
+    final req = reqWithDonor.request;
+    final donor = reqWithDonor.donor;
+
+    final statusText = _getStatusText(req.satats);
+    final statusColor = _getStatusColor(req.satats);
+    print(req);
+    print(donor);
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      margin: const EdgeInsets.only(bottom: 15),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 🔹 عنوان الفئة و حالة الطلب
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  title,
+                  req.category,
                   style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.teal),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal,
+                  ),
                 ),
                 Text(
-                  status,
+                  statusText,
                   style: TextStyle(
                     fontSize: 16,
-                    color:
-                        status == "تم الاستلام" ? Colors.green : Colors.orange,
+                    color: statusColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 4),
 
-            // ✅ زر المحادثة يظهر فقط عندما تكون الحالة "تم الاستلام"
-            if (status == "تم الاستلام")
+            // 🔹 رقم الطلب
+            Text(
+              "رقم الطلب: ${req.reqid}",
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // 🔹 وصف الطلب
+            Text(
+              req.description,
+              style: const TextStyle(fontSize: 16, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+
+            // 🔹 المبلغ إن وجد
+            if (req.pay != null && req.pay!.isNotEmpty)
+              Text(
+                "المبلغ: ${req.pay} ر.س",
+                style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.amber,
+                    fontWeight: FontWeight.bold),
+              ),
+            const SizedBox(height: 12),
+
+            // 🔹 زر التواصل مع المتبرع
+            if (req.satats == '1' && donor != null)
               Center(
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ChatPage(userName: "المتبرع"),
+                        builder: (_) => ChatPage(
+                          currentUserId: AuthService.currentUser()?.uid ?? '',
+                          targetUserId: donor.uid,
+                          targetUserName: donor.name,
+                        ),
                       ),
                     );
                   },

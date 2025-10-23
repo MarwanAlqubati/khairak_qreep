@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'beneficiary_page.dart';
+import 'package:exakhairak_qreep/models/app_Request.dart';
+import 'package:exakhairak_qreep/Services/request_service.dart';
+import 'package:exakhairak_qreep/Services/auth_service.dart';
 
 class DonationMoneyPage extends StatefulWidget {
   const DonationMoneyPage({super.key});
@@ -13,6 +16,36 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
   bool showRequestStatus = false;
   final TextEditingController _amountController = TextEditingController();
   String? submittedAmount;
+  String? latestRequestNumber;
+  bool isLoading = false; // متغير لتحديد حالة التحميل
+  String? needid;
+  @override
+  void initState() {
+    super.initState();
+    _fetchNeedId();
+  }
+
+  Future<void> _fetchNeedId() async {
+    final currentUser = AuthService.currentUser();
+    if (currentUser != null) {
+      setState(() {
+        isLoading = true; // بدء التحميل
+      });
+
+      // الحصول على needid من بيانات المستخدم
+      needid = currentUser.uid; // أو استخدم الخاصية المناسبة
+
+      await Future.delayed(Duration(seconds: 1)); // محاكاة تحميل البيانات
+
+      setState(() {
+        isLoading = false; // الانتهاء من التحميل
+      });
+    } else {
+      setState(() {
+        isLoading = false; // الانتهاء من التحميل في حالة عدم وجود مستخدم
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,14 +90,6 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
                         ),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                    const Text(
-                      "المستفيد: 001",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
                       ),
                     ),
                   ],
@@ -115,22 +140,45 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
 
                 const SizedBox(height: 25),
 
-                // 🔹 الكاردات (زرين رقم الطلب وتقديم الطلب)
-                Wrap(
-                  spacing: 30,
-                  runSpacing: 20,
-                  alignment: WrapAlignment.center,
+                // 🔹 الكاردات (زرين رقم الطلب وتقديم الطلب) في صف واحد
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         setState(() {
-                          showRequestNumber = !showRequestNumber;
+                          isLoading = true; // بدء التحميل
+                        });
+
+                        final latestRequest = await RequestsService
+                            .getLatestRequestByCategoryAndNeedId(
+                                'المالي', needid!);
+
+                        if (latestRequest != null) {
+                          setState(() {
+                            latestRequestNumber = latestRequest.reqid;
+                            showRequestNumber = true;
+                            isLoading = false; // الانتهاء من التحميل
+                          });
+                        } else {
+                          setState(() {
+                            latestRequestNumber = "لا توجد طلبات سابقة";
+                            showRequestNumber = true;
+                            isLoading = false; // الانتهاء من التحميل
+                          });
+                        }
+
+                        // إخفاء الرسالة بعد 5 ثوانٍ
+                        await Future.delayed(Duration(seconds: 5));
+                        setState(() {
+                          showRequestNumber = false;
                         });
                       },
                       child: _buildCard(Icons.receipt_long, "رقم الطلب"),
                     ),
+                    const SizedBox(width: 30), // المسافة بين الكاردين
                     GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         if (_amountController.text.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -145,8 +193,21 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
                           submittedAmount = _amountController.text;
                           showRequestStatus = true;
                           showRequestNumber = true;
+                          isLoading = true; // بدء التحميل
                         });
 
+                        // توليد reqid فريد
+                        String reqid =
+                            await RequestsService.generateUniqueReqId();
+                        final request = AppRequest(
+                          reqid: reqid,
+                          needid: needid!, // يمكنك تخصيص هذا بناءً على الحاجة
+                          description: 'طلب تبرع مالي',
+                          category: 'المالي',
+                          pay: submittedAmount, // حفظ المبلغ
+                        );
+
+                        await RequestsService.addRequest(request);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -155,6 +216,14 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
                             duration: const Duration(seconds: 2),
                           ),
                         );
+
+                        // إخفاء الرسائل بعد 5 ثوانٍ
+                        await Future.delayed(const Duration(seconds: 5));
+                        setState(() {
+                          showRequestStatus = false;
+                          showRequestNumber = false;
+                          isLoading = false; // انتهاء التحميل
+                        });
                       },
                       child: _buildCard(Icons.note_add, "تقديم طلب"),
                     ),
@@ -164,7 +233,8 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
                 const SizedBox(height: 30),
 
                 // 🔹 الكاردات اللي تظهر تحت بعد الضغط
-                if (showRequestNumber) _buildInfoCard("رقم الطلب: 123456"),
+                if (showRequestNumber)
+                  _buildInfoCard("رقم الطلب: ${latestRequestNumber ?? ''}"),
                 if (showRequestStatus)
                   _buildInfoCard(
                       "✅ تم تقديم طلب تبرع مالي بمبلغ ${submittedAmount ?? ''} ريال بنجاح"),

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // ✅ لإظهار التاريخ بصيغة مرتبة
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:exakhairak_qreep/Services/auth_service.dart';
+import 'models/app_user.dart';
 
 class SignUpPage extends StatefulWidget {
   @override
@@ -145,6 +149,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             value: region, child: Text(region));
                       }).toList(),
                       onChanged: (value) {
+                        print(value);
                         setState(() => selectedRegion = value);
                       },
                       validator: (value) =>
@@ -186,13 +191,53 @@ class _SignUpPageState extends State<SignUpPage> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            setState(() => errorMessage = "");
-                            Navigator.pushReplacementNamed(context, '/login');
-                          } else {
+                        onPressed: () async {
+                          if (!_formKey.currentState!.validate()) {
                             setState(
                                 () => errorMessage = "يجب تعبئة جميع الحقول");
+                            return;
+                          }
+
+                          setState(() => errorMessage = "");
+
+                          try {
+                            final cred = await AuthService.signUp(
+                                email: emailController.text.trim(),
+                                password: passwordController.text);
+
+                            final appUser = AppUser(
+                              uid: cred.user!.uid,
+                              name: nameController.text.trim(),
+                              email: emailController.text.trim(),
+                              dob: dateController.text,
+                              region: selectedRegion,
+                              address: addressController.text.trim(),
+                              nationalId: idController.text.trim(),
+                              role: 'user',
+                              // createdAt left null — we'll use server timestamp when saving
+                            );
+
+                            // convert to map but override createdAt with server timestamp
+                            final map = appUser.toMap();
+                            map['createdAt'] = FieldValue.serverTimestamp();
+
+                            await AuthService.saveUserData(cred.user!.uid, map);
+
+                            Navigator.pushReplacementNamed(context, '/login');
+                          } on FirebaseAuthException catch (e) {
+                            setState(() {
+                              if (e.code == 'email-already-in-use') {
+                                errorMessage = 'هذا الإيميل مستخدم بالفعل.';
+                              } else if (e.code == 'weak-password') {
+                                errorMessage = 'كلمة المرور ضعيفة.';
+                              } else {
+                                errorMessage =
+                                    e.message ?? 'خطأ أثناء التسجيل.';
+                              }
+                            });
+                          } catch (e) {
+                            setState(() => errorMessage =
+                                'حدث خطأ غير متوقع. حاول مرة أخرى.');
                           }
                         },
                         child: const Text(

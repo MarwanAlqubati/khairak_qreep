@@ -1,7 +1,42 @@
+import 'package:exakhairak_qreep/Services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  _SplashScreenState createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthAndRedirect();
+  }
+
+  Future<void> _checkAuthAndRedirect() async {
+    final user = AuthService.currentUser();
+    await Future.delayed(const Duration(seconds: 1)); // small delay for splash
+    if (user == null) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+    final doc = await AuthService.getUserDoc(user.uid);
+    if (!doc.exists) {
+      Navigator.pushReplacementNamed(context, '/signup');
+      return;
+    }
+
+    final role = doc.data()?['role'] ?? 'user';
+    if (role == 'admin') {
+      Navigator.pushReplacementNamed(context, '/admin');
+    } else {
+      Navigator.pushReplacementNamed(context, '/lo');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

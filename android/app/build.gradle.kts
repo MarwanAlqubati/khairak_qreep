@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.exakhairak_qreep"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 32
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

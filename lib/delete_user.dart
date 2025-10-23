@@ -1,4 +1,8 @@
+import 'package:exakhairak_qreep/Services/auth_service.dart';
+import 'package:exakhairak_qreep/models/app_user.dart';
+
 import 'package:flutter/material.dart';
+
 import 'users_management.dart';
 
 class DeleteUserPage extends StatefulWidget {
@@ -8,33 +12,12 @@ class DeleteUserPage extends StatefulWidget {
 
 class _DeleteUserPageState extends State<DeleteUserPage> {
   final TextEditingController idSearchController = TextEditingController();
-
-  // مثال بيانات محلية مؤقتة (تقدر تربطها لاحقاً بالـ Firebase)
-  List<Map<String, String>> users = [
-    {
-      'name': 'أحمد علي',
-      'phone': '+966500000001',
-      'nationalId': '1116725316',
-      'email': 'ahmad@example.com',
-    },
-    {
-      'name': 'سارة محمد',
-      'phone': '+966500000002',
-      'nationalId': '2226725317',
-      'email': 'sara@example.com',
-    },
-    {
-      'name': 'محمد خالد',
-      'phone': '+966500000003',
-      'nationalId': '3336725318',
-      'email': 'mohammed@example.com',
-    },
-  ];
-
-  Map<String, String>? foundUser;
+  bool _isLoading = false;
+  AppUser? foundUser;
   String infoMessage = "";
 
-  void _searchById() {
+  /// البحث عن المستخدم برقم الهوية
+  Future<void> _searchById() async {
     final query = idSearchController.text.trim();
     if (query.isEmpty) {
       setState(() {
@@ -44,73 +27,113 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
       return;
     }
 
-    final match =
-        users.firstWhere((u) => u['nationalId'] == query, orElse: () => {});
-    if (match.isNotEmpty) {
+    setState(() {
+      _isLoading = true;
+      foundUser = null;
+      infoMessage = "";
+    });
+
+    try {
+      final user = await AuthService.searchUserByNationalId(query);
+      print(user);
+      if (user != null) {
+        setState(() {
+          foundUser = user;
+          infoMessage = "";
+        });
+      } else {
+        setState(() {
+          foundUser = null;
+          infoMessage = "لم يتم العثور على مستخدم برقم الهوية هذا";
+        });
+      }
+    } catch (e) {
       setState(() {
-        foundUser = match;
-        infoMessage = "";
+        infoMessage = "حدث خطأ أثناء البحث: $e";
       });
-    } else {
-      setState(() {
-        foundUser = null;
-        infoMessage = "لم يتم العثور على مستخدم برقم الهوية هذا";
-      });
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  void _deleteFoundUser() {
+  /// حذف المستخدم من Firestore
+  Future<void> _deleteUser() async {
     if (foundUser == null) return;
-    final idToDelete = foundUser!['nationalId']!;
-    setState(() {
-      users.removeWhere((u) => u['nationalId'] == idToDelete);
-      foundUser = null;
-      idSearchController.clear();
-    });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("تم حذف المستخدم برقم الهوية $idToDelete")),
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("تأكيد الحذف"),
+        content: const Text("هل أنت متأكد أنك تريد حذف هذا المستخدم؟"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("إلغاء"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              "حذف",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
 
-    // الرجوع إلى صفحة إدارة المستخدمين بعد حذف (مثل سلوك سابق)
-    Future.delayed(const Duration(milliseconds: 700), () {
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await AuthService.deleteUser(foundUser!.uid);
+      setState(() {
+        foundUser = null;
+        idSearchController.clear();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text("تم حذف المستخدم ${foundUser?.name ?? ''} بنجاح")),
+      );
+
+      // الرجوع للصفحة السابقة بعد الحذف
+      await Future.delayed(const Duration(milliseconds: 700));
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => UserManagementPage()),
       );
-    });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("فشل الحذف: $e")),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // نفس الخلفية المتدرجة مثل باقي الصفحات
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
+            colors: [Colors.white, Colors.teal.shade100],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.white,
-              Colors.teal.shade100,
-            ],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // رأس الصفحة: شعار + عنوان
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: const [
-                    Icon(
-                      Icons.volunteer_activism,
-                      color: Colors.amber,
-                      size: 60,
-                    ),
+                    Icon(Icons.volunteer_activism,
+                        color: Colors.amber, size: 60),
                     Text(
                       "حذف مستخدم",
                       style: TextStyle(
@@ -122,8 +145,6 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
                   ],
                 ),
               ),
-
-              // زر الرجوع (كما كان)
               Align(
                 alignment: Alignment.centerLeft,
                 child: IconButton(
@@ -137,10 +158,9 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
                   },
                 ),
               ),
-
               const SizedBox(height: 20),
 
-              // حق البحث برقم الهوية
+              // حقل البحث
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -175,13 +195,22 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
                       height: 50,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.search),
-                        label: const Text("بحث"),
+                        label: _isLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text("بحث"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.teal,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: _searchById,
+                        onPressed: _isLoading ? null : _searchById,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -197,7 +226,6 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
 
               const SizedBox(height: 20),
 
-              // إذا تم العثور على مستخدم، اعرض بياناته وبزر الحذف
               if (foundUser != null)
                 Padding(
                   padding:
@@ -219,7 +247,7 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  foundUser!['name'] ?? '',
+                                  foundUser!.name,
                                   style: const TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -230,12 +258,11 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text("الإيميل: ${foundUser!['email'] ?? '-'}"),
+                          Text("الإيميل: ${foundUser!.email}"),
                           const SizedBox(height: 4),
-                          Text("الجوال: ${foundUser!['phone'] ?? '-'}"),
+                          Text("العنوان : ${foundUser!.address}"),
                           const SizedBox(height: 4),
-                          Text(
-                              "رقم الهوية: ${foundUser!['nationalId'] ?? '-'}"),
+                          Text("رقم الهوية: ${foundUser!.nationalId}"),
                           const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
@@ -246,38 +273,19 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10)),
                               ),
-                              onPressed: () {
-                                // تأكيد الحذف عبر حوار بسيط قبل التنفيذ
-                                showDialog(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text("تأكيد حذف"),
-                                    content: const Text(
-                                        "هل أنت متأكد أنك تريد حذف هذا المستخدم؟"),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        child: const Text("إلغاء"),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(ctx); // اغلق الحوار
-                                          _deleteFoundUser();
-                                        },
-                                        child: const Text(
-                                          "حذف",
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                "حذف المستخدم",
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 16),
-                              ),
+                              onPressed: _isLoading ? null : _deleteUser,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : const Text(
+                                      "حذف المستخدم",
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 16),
+                                    ),
                             ),
                           ),
                         ],
@@ -285,9 +293,6 @@ class _DeleteUserPageState extends State<DeleteUserPage> {
                     ),
                   ),
                 ),
-
-              // مسافة سفلية مرنة
-              const SizedBox(height: 16),
               const Spacer(),
             ],
           ),

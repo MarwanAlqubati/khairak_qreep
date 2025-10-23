@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:exakhairak_qreep/Services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -19,13 +21,48 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void login() {
-    if (_formKey.currentState!.validate()) {
-      if (usernameController.text == "admin" &&
-          passwordController.text == "12345") {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => errorMessage = "");
+
+    _signInWithEmail();
+  }
+
+  Future<void> _signInWithEmail() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      final cred = await AuthService.signIn(
+          email: usernameController.text.trim(),
+          password: passwordController.text);
+
+      final uid = cred.user!.uid;
+      final doc = await AuthService.getUserDoc(uid);
+
+      if (!doc.exists) {
+        Navigator.pushReplacementNamed(context, '/signup');
+        return;
+      }
+
+      final role = doc.data()?['role'] ?? 'user';
+      if (role == 'admin') {
         Navigator.pushReplacementNamed(context, '/admin');
       } else {
         Navigator.pushReplacementNamed(context, '/lo');
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        if (e.code == 'user-not-found') {
+          errorMessage = 'المستخدم غير موجود. أنشئ حسابًا جديدًا.';
+        } else if (e.code == 'wrong-password') {
+          errorMessage = 'كلمة المرور غير صحيحة.';
+        } else {
+          errorMessage = e.message ?? 'خطأ أثناء تسجيل الدخول.';
+        }
+      });
+    } catch (e) {
+      setState(() => errorMessage = 'حدث خطأ. حاول مرة أخرى.');
     }
   }
 
@@ -81,12 +118,13 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       TextFormField(
                         controller: usernameController,
+                        keyboardType: TextInputType.emailAddress,
                         decoration: const InputDecoration(
-                          labelText: "اسم المستخدم",
-                          prefixIcon: Icon(Icons.person),
+                          labelText: "البريد الإلكتروني",
+                          prefixIcon: Icon(Icons.email),
                         ),
                         validator: (value) =>
-                            value!.isEmpty ? "اسم المستخدم مطلوب" : null,
+                            value!.isEmpty ? "الإيميل مطلوب" : null,
                         onChanged: (_) => clearError(),
                       ),
                       const SizedBox(height: 15),

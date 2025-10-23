@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'beneficiary_details.dart';
+import 'package:exakhairak_qreep/Services/auth_service.dart';
+import 'package:exakhairak_qreep/models/app_user.dart';
 
 class AccessControlPage extends StatefulWidget {
   const AccessControlPage({super.key});
@@ -11,42 +13,42 @@ class AccessControlPage extends StatefulWidget {
 class _AccessControlPageState extends State<AccessControlPage> {
   final TextEditingController searchController = TextEditingController();
 
-  // ✅ قائمة المستفيدين التجريبية
-  final List<Map<String, String>> beneficiaries = [
-    {
-      'name': 'مستفيد 1',
-      'phone': '+966500000000',
-      'nationalId': '1234567890',
-    },
-    {
-      'name': 'مستفيد 2',
-      'phone': '+966511111111',
-      'nationalId': '9876543210',
-    },
-    {
-      'name': 'مستفيد 3',
-      'phone': '+966522222222',
-      'nationalId': '1122334455',
-    },
-  ];
-
-  List<Map<String, String>> filteredBeneficiaries = [];
+  List<AppUser> allUsers = [];
+  List<AppUser> filteredUsers = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    filteredBeneficiaries = beneficiaries;
+    _loadUsers();
   }
 
-  // 🔍 وظيفة البحث
+  Future<void> _loadUsers() async {
+    try {
+      final users = await AuthService.getAllUsersExceptCurrent();
+      setState(() {
+        allUsers = users;
+        filteredUsers = users;
+        isLoading = false;
+      });
+    } catch (e) {
+      print("❌ Error loading users: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   void searchByNationalId() {
-    String query = searchController.text.trim();
+    final query = searchController.text.trim();
     setState(() {
       if (query.isEmpty) {
-        filteredBeneficiaries = beneficiaries;
+        filteredUsers = allUsers;
       } else {
-        filteredBeneficiaries = beneficiaries
-            .where((b) => b['nationalId']!.contains(query))
+        filteredUsers = allUsers
+            .where((user) =>
+                (user.nationalId ?? '').contains(query) ||
+                user.name.contains(query))
             .toList();
       }
     });
@@ -55,7 +57,6 @@ class _AccessControlPageState extends State<AccessControlPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ✅ الخلفية المتدرجة
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -75,9 +76,7 @@ class _AccessControlPageState extends State<AccessControlPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                       label: const Text(
                         "رجوع",
@@ -114,17 +113,16 @@ class _AccessControlPageState extends State<AccessControlPage> {
 
               const SizedBox(height: 15),
 
-              // 🔹 حقل البحث + زر البحث
+              // 🔍 حقل البحث
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    // حقل إدخال رقم الهوية
                     Expanded(
                       child: TextField(
                         controller: searchController,
                         decoration: InputDecoration(
-                          labelText: "ابحث برقم الهوية",
+                          labelText: "ابحث برقم الهوية أو الاسم",
                           prefixIcon:
                               const Icon(Icons.person, color: Colors.teal),
                           border: OutlineInputBorder(
@@ -133,12 +131,10 @@ class _AccessControlPageState extends State<AccessControlPage> {
                           filled: true,
                           fillColor: Colors.white,
                         ),
-                        keyboardType: TextInputType.number,
+                        keyboardType: TextInputType.text,
                       ),
                     ),
                     const SizedBox(width: 10),
-
-                    // زر البحث
                     ElevatedButton(
                       onPressed: searchByNationalId,
                       style: ElevatedButton.styleFrom(
@@ -158,61 +154,71 @@ class _AccessControlPageState extends State<AccessControlPage> {
 
               const SizedBox(height: 20),
 
-              // 🔹 عرض النتائج
+              // 📋 عرض النتائج
               Expanded(
-                child: filteredBeneficiaries.isEmpty
+                child: isLoading
                     ? const Center(
-                        child: Text(
-                          "لا يوجد نتائج مطابقة",
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
+                        child: CircularProgressIndicator(color: Colors.teal),
                       )
-                    : ListView.builder(
-                        itemCount: filteredBeneficiaries.length,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemBuilder: (context, index) {
-                          final beneficiary = filteredBeneficiaries[index];
-                          return Card(
-                            color: Colors.white,
-                            elevation: 4,
-                            margin: const EdgeInsets.symmetric(vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
+                    : filteredUsers.isEmpty
+                        ? const Center(
+                            child: Text(
+                              "لا يوجد مستخدمين متاحين",
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.grey),
                             ),
-                            child: ListTile(
-                              leading: const Icon(Icons.person,
-                                  color: Colors.amber, size: 35),
-                              title: Text(
-                                beneficiary['name'] ?? '',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.teal,
+                          )
+                        : ListView.builder(
+                            itemCount: filteredUsers.length,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemBuilder: (context, index) {
+                              final user = filteredUsers[index];
+                              return Card(
+                                color: Colors.white,
+                                elevation: 4,
+                                margin:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
                                 ),
-                              ),
-                              subtitle: Text(
-                                "رقم الهوية: ${beneficiary['nationalId']}",
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => BeneficiaryDetailPage(
-                                      name: beneficiary['name']!,
-                                      phone: beneficiary['phone']!,
-                                      nationalId: beneficiary['nationalId']!,
+                                child: ListTile(
+                                  leading: const Icon(
+                                    Icons.person,
+                                    color: Colors.amber,
+                                    size: 35,
+                                  ),
+                                  title: Text(
+                                    user.name,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.teal,
                                     ),
                                   ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      ),
+                                  subtitle: Text(
+                                    "رقم الهوية: ${user.nationalId ?? 'غير متوفر'}\n"
+                                    "البريد: ${user.email}",
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => BeneficiaryDetailPage(
+                                          name: user.name,
+                                          phone: user.region ?? '',
+                                          nationalId: user.nationalId ?? '',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
               ),
             ],
           ),

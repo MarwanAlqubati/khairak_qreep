@@ -1,3 +1,4 @@
+import 'package:exakhairak_qreep/Services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'donation_money.dart';
 import 'donation_food.dart';
@@ -6,21 +7,63 @@ import 'donation_other.dart';
 import 'track_requests.dart';
 import 'home.dart';
 import 'beneficiary_campaigns_page.dart';
-import 'app_drawer.dart'; 
+import 'app_drawer.dart';
 
-class BeneficiaryPage extends StatelessWidget {
+class BeneficiaryPage extends StatefulWidget {
   const BeneficiaryPage({super.key});
 
   @override
+  State<BeneficiaryPage> createState() => _BeneficiaryPageState();
+}
+
+class _BeneficiaryPageState extends State<BeneficiaryPage> {
+  String? userName;
+  String? userRole;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = await AuthService.currentUser();
+
+      final uid = user!.uid;
+      final doc = await AuthService.getUserDoc(uid);
+
+      setState(() {
+        userName = doc['name'] ?? 'مستخدم غير معروف';
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('خطأ في تحميل بيانات المستخدم: $e');
+      setState(() {
+        userName = 'خطأ في تحميل البيانات';
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.teal),
+        ),
+      );
+    }
+
     return Scaffold(
-      drawer: const AppDrawer(
-        userName: "المستفيد 001",
-        userRole: "مستفيد",
-      ), 
+      drawer: AppDrawer(
+        userName: userName ?? "المستفيد",
+        userRole: userRole ?? "مستفيد",
+      ),
       body: Builder(
         builder: (context) => Container(
-       
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -34,14 +77,12 @@ class BeneficiaryPage extends StatelessWidget {
           child: SafeArea(
             child: Column(
               children: [
-               
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                   
                       IconButton(
                         icon: const Icon(Icons.menu,
                             color: Colors.teal, size: 35),
@@ -49,7 +90,6 @@ class BeneficiaryPage extends StatelessWidget {
                           Scaffold.of(context).openDrawer();
                         },
                       ),
-
                       ElevatedButton.icon(
                         onPressed: () {
                           Navigator.pushReplacement(
@@ -74,14 +114,13 @@ class BeneficiaryPage extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                const Align(
+                Align(
                   alignment: Alignment.centerRight,
                   child: Padding(
-                    padding: EdgeInsets.only(right: 20),
+                    padding: const EdgeInsets.only(right: 20),
                     child: Text(
-                      "المستفيد: 001",
-                      style: TextStyle(
+                      " ${userName ?? 'غير معروف'}",
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.teal,
@@ -89,14 +128,10 @@ class BeneficiaryPage extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
                 const Icon(Icons.volunteer_activism,
                     color: Colors.teal, size: 70),
-
                 const SizedBox(height: 20),
-
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(20),
@@ -110,74 +145,50 @@ class BeneficiaryPage extends StatelessWidget {
                             context,
                             icon: Icons.attach_money,
                             label: "تبرع مالي",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const DonationMoneyPage()),
-                              );
+                            onTap: () async {
+                              await _navigateToPage(const DonationMoneyPage());
                             },
                           ),
                           _buildDonationCard(
                             context,
                             icon: Icons.fastfood,
                             label: "تبرع غذائي",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const DonationFoodPage()),
-                              );
+                            onTap: () async {
+                              await _navigateToPage(const DonationFoodPage());
                             },
                           ),
                           _buildDonationCard(
                             context,
                             icon: Icons.checkroom,
                             label: "تبرع ملابس",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const DonationClothesPage()),
-                              );
+                            onTap: () async {
+                              await _navigateToPage(
+                                  const DonationClothesPage());
                             },
                           ),
                           _buildDonationCard(
                             context,
                             icon: Icons.card_giftcard,
                             label: "غير ذلك",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const DonationOtherPage()),
-                              );
+                            onTap: () async {
+                              await _navigateToPage(const DonationOtherPage());
                             },
                           ),
                           _buildDonationCard(
                             context,
                             icon: Icons.track_changes,
                             label: "متابعة الطلبات",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const TrackRequestsPage()),
-                              );
+                            onTap: () async {
+                              await _navigateToPage(const TrackRequestsPage());
                             },
                           ),
                           _buildDonationCard(
                             context,
                             icon: Icons.handshake,
                             label: "الحملات التطوعية",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const BeneficiaryCampaignsPage()),
-                              );
+                            onTap: () async {
+                              await _navigateToPage(
+                                  const BeneficiaryCampaignsPage());
                             },
                           ),
                         ],
@@ -191,6 +202,22 @@ class BeneficiaryPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _navigateToPage(Widget page) async {
+    // عرض مؤشر التحميل أثناء الانتقال إلى الصفحة الجديدة
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // الانتظار لفترة قصيرة لمحاكاة التحميل
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // الانتقال إلى الصفحة الجديدة
+    Navigator.pop(context); // إغلاق مؤشر التحميل
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   Widget _buildDonationCard(BuildContext context,

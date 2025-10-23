@@ -8,25 +8,25 @@ class BeneficiaryCampaignsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> campaigns = [
       {
-        "title": "حملة العودة للمدارس",
-        "icon": Icons.school,
-        "desc": "جمع أدوات مدرسية للطلاب المحتاجين.",
-        "org": "جمعية البر الخيرية",
-        "date": "من 10 إلى 25 أغسطس"
+        "titlle": "حملة العودة للمدارس",
+        "iconName": Icons.school,
+        "description": "جمع أدوات مدرسية للطلاب المحتاجين.",
+        "charityname": "جمعية البر الخيرية",
+        "datecharity": "من 10 إلى 25 أغسطس"
       },
       {
-        "title": "حملة دفء الشتاء",
-        "icon": Icons.ac_unit,
-        "desc": "توزيع بطانيات وملابس شتوية.",
-        "org": "جمعية الإحسان",
-        "date": "من 1 إلى 20 ديسمبر"
+        "titlle": "حملة دفء الشتاء",
+        "iconName": Icons.ac_unit,
+        "description": "توزيع بطانيات وملابس شتوية.",
+        "charityname": "جمعية الإحسان",
+        "datecharity": "من 1 إلى 20 ديسمبر"
       },
       {
-        "title": "حملة إفطار صائم",
-        "icon": Icons.fastfood,
-        "desc": "توزيع وجبات إفطار للصائمين في رمضان.",
-        "org": "جمعية الإكرام",
-        "date": "شهر رمضان المبارك"
+        "titlle": "حملة إفطار صائم",
+        "iconName": Icons.fastfood,
+        "description": "توزيع وجبات إفطار للصائمين في رمضان.",
+        "charityname": "جمعية الإكرام",
+        "datecharity": "شهر رمضان المبارك"
       },
     ];
 
@@ -72,14 +72,6 @@ class BeneficiaryCampaignsPage extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                    const Text(
-                      "المستفيد: 001",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
                       ),
                     ),
                   ],
