@@ -247,36 +247,36 @@ class _TrackRequestsPageState extends State<TrackRequestsPage> {
             const SizedBox(height: 12),
 
             // 🔹 زر التواصل مع المتبرع
-            if (req.satats == '1' && donor != null)
-              Center(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatPage(
-                          currentUserId: AuthService.currentUser()?.uid ?? '',
-                          targetUserId: donor.uid,
-                          targetUserName: donor.name,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.chat, color: Colors.white),
-                  label: const Text(
-                    "تواصل مع المتبرع",
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 25, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
+            // if (req.satats == '1' && donor != null)
+            //   Center(
+            //     child: ElevatedButton.icon(
+            //       onPressed: () {
+            //         Navigator.push(
+            //           context,
+            //           MaterialPageRoute(
+            //             builder: (_) => ChatPage(
+            //               currentUserId: AuthService.currentUser()?.uid ?? '',
+            //               targetUserId: donor.uid,
+            //               targetUserName: donor.name,
+            //             ),
+            //           ),
+            //         );
+            //       },
+            //       icon: const Icon(Icons.chat, color: Colors.white),
+            //       label: const Text(
+            //         "تواصل مع المتبرع",
+            //         style: TextStyle(color: Colors.white, fontSize: 16),
+            //       ),
+            //       style: ElevatedButton.styleFrom(
+            //         backgroundColor: Colors.teal,
+            //         padding: const EdgeInsets.symmetric(
+            //             horizontal: 25, vertical: 10),
+            //         shape: RoundedRectangleBorder(
+            //           borderRadius: BorderRadius.circular(10),
+            //         ),
+            //       ),
+            //     ),
+            //   ),
           ],
         ),
       ),

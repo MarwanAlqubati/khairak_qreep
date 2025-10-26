@@ -1,29 +1,24 @@
+import 'package:exakhairak_qreep/Association/association_add.dart';
+import 'package:exakhairak_qreep/Association/association_administration.dart';
 import 'package:flutter/material.dart';
 
-class AssociationVolunteerPage extends StatelessWidget {
+class AssociationVolunteerPage extends StatefulWidget {
   const AssociationVolunteerPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // 🔹 قائمة الحملات (مؤقتًا ثابتة، لاحقًا من قاعدة البيانات)
-    final List<Map<String, dynamic>> campaigns = [
-      {
-        "title": "حملة العودة للمدارس",
-        "icon": Icons.school,
-      },
-      {
-        "title": "حملة دفء الشتاء",
-        "icon": Icons.ac_unit,
-      },
-      {
-        "title": "حملة إفطار صائم",
-        "icon": Icons.fastfood,
-      },
-    ];
+  State<AssociationVolunteerPage> createState() =>
+      _AssociationVolunteerPageState();
+}
 
+class _AssociationVolunteerPageState extends State<AssociationVolunteerPage> {
+  bool _isAdding = false;
+  bool _isManaging = false;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // 🔹 خلفية متدرجة بين الأبيض والتركوازي الفاتح
+        // خلفية متدرجة
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -40,14 +35,12 @@ class AssociationVolunteerPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 🔹 الصف العلوي (زر رجوع + اسم الجمعية)
+                // صف علوي: زر رجوع + اسم الجمعية
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                       label: const Text(
                         "رجوع",
@@ -59,9 +52,7 @@ class AssociationVolunteerPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
+                            horizontal: 16, vertical: 8),
                       ),
                     ),
                     const Text(
@@ -75,15 +66,10 @@ class AssociationVolunteerPage extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 20),
-
-                // 🔹 الشعار
+                const SizedBox(height: 30),
                 const Icon(Icons.volunteer_activism,
                     color: Colors.teal, size: 80),
-
                 const SizedBox(height: 20),
-
-                // 🔹 العنوان الرئيسي
                 const Text(
                   "الحملات الموسمية",
                   style: TextStyle(
@@ -92,71 +78,129 @@ class AssociationVolunteerPage extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 40),
 
-                const SizedBox(height: 30),
+                // صف الزرين: إضافة + إدارة
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // زر إضافة حملة
+                    ElevatedButton.icon(
+                      onPressed: _isAdding
+                          ? null
+                          : () async {
+                              setState(() => _isAdding = true);
 
-                // 🔹 قائمة الإعلانات (الكاردات)
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: campaigns.length,
-                    itemBuilder: (context, index) {
-                      final campaign = campaigns[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 10),
-                        elevation: 4,
+                              // افتح صفحة الإضافة — قد تعيد null لو رجع المستخدم بدون حفظ
+                              final result = await Navigator.push<
+                                  List<Map<String, dynamic>>>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AddCampaignPage(),
+                                ),
+                              );
+
+                              // معالجة النتيجة بطريقة آمنة
+                              if (result != null) {
+                                // هنا يمكنك حفظ النتائج في حال أردت
+                                // مثال: print(result);
+                                // debugPrint('تمت إضافة الحملات: $result');
+                              }
+
+                              // توقف اللودنج بعد انتهاء العملية — تأكد من mounted
+                              if (mounted) {
+                                await Future.delayed(
+                                    const Duration(milliseconds: 300));
+                                setState(() => _isAdding = false);
+                              }
+                            },
+                      icon: _isAdding
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.add_circle_outline,
+                              color: Colors.white),
+                      label: _isAdding
+                          ? const Text("", style: TextStyle(fontSize: 0))
+                          : const Text(
+                              "إضافة حملة",
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.white),
+                            ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal.shade600,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 25, vertical: 15),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(campaign["icon"],
-                                      color: Colors.teal, size: 40),
-                                  const SizedBox(width: 15),
-                                  Text(
-                                    campaign["title"],
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'تم تسجيل ${campaign["title"]} كإعلان ✅',
-                                      ),
-                                      backgroundColor: Colors.teal,
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.teal,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
+                      ),
+                    ),
+
+                    // زر إدارة الحملات
+                    ElevatedButton.icon(
+                      onPressed: _isManaging
+                          ? null
+                          : () async {
+                              setState(() => _isManaging = true);
+
+                              // انتقل لصفحة الإدارة — لا تفترض أنها ستعيد قيمة
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ManageCampaignsPage(),
                                 ),
-                                child: const Text(
-                                  "تسجيل",
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 15),
-                                ),
+                              );
+
+                              if (mounted) {
+                                await Future.delayed(
+                                    const Duration(milliseconds: 300));
+                                setState(() => _isManaging = false);
+                              }
+                            },
+                      icon: _isManaging
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
                               ),
-                            ],
-                          ),
+                            )
+                          : const Icon(Icons.settings, color: Colors.white),
+                      label: _isManaging
+                          ? const Text("", style: TextStyle(fontSize: 0))
+                          : const Text(
+                              "إدارة الحملات",
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.white),
+                            ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.shade700,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 25, vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
+
+                const Spacer(),
+                const Text(
+                  "اختر العملية التي ترغب بتنفيذها 👆",
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 15,
+                      fontStyle: FontStyle.italic),
+                ),
+                const SizedBox(height: 30),
               ],
             ),
           ),

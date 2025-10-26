@@ -20,6 +20,20 @@ class CharityService {
   }
 
   /// جلب العناصر النشطة (satats == '1')
+  static Future<List<AppCharity>> getAllUser(String userid) async {
+    try {
+      final snapshot = await _charity.where(userid, isEqualTo: userid).get();
+      final appCharity =
+          snapshot.docs.map((doc) => AppCharity.fromDocument(doc)).toList();
+      debugPrint("Fetched ${appCharity.length} active charities.");
+      return appCharity;
+    } catch (e, st) {
+      debugPrint("Error fetching active charities: $e");
+      debugPrint(st.toString());
+      return <AppCharity>[];
+    }
+  }
+
   static Future<List<AppCharity>> getStatsActive() async {
     try {
       final snapshot = await _charity.where('satats', isEqualTo: '1').get();

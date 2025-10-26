@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AppCharity {
   final String? uid;
   final String titlle;
+  final String? userid;
   final String charityname;
   final String description;
   final String datecharity;
@@ -13,6 +14,7 @@ class AppCharity {
   AppCharity({
     this.uid,
     required this.titlle,
+    this.userid,
     required this.charityname,
     required this.description,
     required this.datecharity,
@@ -23,6 +25,7 @@ class AppCharity {
   Map<String, dynamic> toMap() {
     return {
       'titlle': titlle,
+      'userid': userid,
       'charityname': charityname,
       'description': description,
       'datecharity': datecharity,
@@ -35,6 +38,7 @@ class AppCharity {
     return AppCharity(
       uid: uid,
       titlle: map['titlle'] ?? '',
+      userid: map['userid'] ?? '',
       charityname: map['charityname'] ?? '',
       description: map['description'] ?? '',
       datecharity: map['datecharity'] ?? '',
@@ -50,6 +54,6 @@ class AppCharity {
 
   @override
   String toString() {
-    return 'AppCharity(titlle: $titlle, charityname: $charityname, datecharity: $datecharity, description: $description, icon: $iconName)';
+    return 'AppCharity(titlle: $titlle,userid: $userid, charityname: $charityname, datecharity: $datecharity, description: $description, icon: $iconName , satats: $satats)';
   }
 }

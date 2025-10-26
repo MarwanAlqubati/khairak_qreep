@@ -1,3 +1,4 @@
+import 'package:exakhairak_qreep/Chat/conversations_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'login.dart';
 import 'settings_page.dart'; // ✅ استدعاء صفحة الإعدادات
@@ -84,11 +85,16 @@ class AppDrawer extends StatelessWidget {
               ),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("سيتم عرض الطلبات قريباً 💚"),
-                  ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ConversationsListScreen()),
                 );
+                // Navigator.pop(context);
+                // ScaffoldMessenger.of(context).showSnackBar(
+                //   const SnackBar(
+                //     content: Text("سيتم عرض الطلبات قريباً 💚"),
+                //   ),
+                // );
               },
             ),
 
