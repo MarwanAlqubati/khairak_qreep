@@ -5,6 +5,7 @@ import 'package:exakhairak_qreep/models/app_user.dart';
 import 'package:exakhairak_qreep/models/message.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
 
 class ChatScreen extends StatefulWidget {
   final String conversationId;
@@ -24,33 +25,84 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  int _messageCount = 0;
 
-  void _sendTextMessage() {
+  List<Message> _localMessages = []; // احتفظ برسائل مؤقتة
+
+  void _sendTextMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    ChatService.sendTextMessage(
+    // أنشئ رسالة محلية مؤقتة للعرض الفوري
+    final tempMessage = Message(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       conversationId: widget.conversationId,
       senderId: widget.currentUserId,
       receiverId: widget.otherUser.uid,
-      text: text,
+      type: MessageType.text,
+      content: text,
+      timestamp: DateTime.now(),
     );
 
-    _messageController.clear();
+    setState(() {
+      _localMessages.add(tempMessage);
+      _messageController.clear();
+    });
     _scrollToBottom();
+
+    try {
+      await ChatService.sendTextMessage(
+        conversationId: widget.conversationId,
+        senderId: widget.currentUserId,
+        receiverId: widget.otherUser.uid,
+        text: text,
+      );
+      // بعد نجاح الإرسال، يمكنك اختيار إزالة الـ temp message أو استبدالها بالنسخة الحقيقية من الـ stream
+    } catch (e) {
+      // فشل الإرسال: علم المستخدم أو حدّث الـ ui
+      print('Send failed: $e');
+    }
   }
 
   void _sendImageMessage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (image != null) {
-      ChatService.sendImageMessage(
-        conversationId: widget.conversationId,
-        senderId: widget.currentUserId,
-        receiverId: widget.otherUser.uid,
-        imageFile: File(image.path),
-      );
+    if (image == null) return;
+
+    if (kIsWeb) {
+      // Web: read bytes and call a web-specific uploader
+      final bytes = await image.readAsBytes();
+      final contentType = 'image/png'; // or detect dynamically if needed
+      try {
+        await ChatService.sendImageMessageWeb(
+          conversationId: widget.conversationId,
+          senderId: widget.currentUserId,
+          receiverId: widget.otherUser.uid,
+          imageData: bytes,
+          contentType: contentType,
+          fileName: 'chat_images/${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+      } catch (e) {
+        print('Upload failed (web): $e');
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('فشل رفع الصورة على الويب')));
+      }
+    } else {
+      // Mobile: convert to File and use existing method
+      final file = File(image.path);
+      try {
+        await ChatService.sendImageMessage(
+          conversationId: widget.conversationId,
+          senderId: widget.currentUserId,
+          receiverId: widget.otherUser.uid,
+          imageFile: file,
+        );
+      } catch (e) {
+        print('Upload failed (mobile): $e');
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('فشل رفع الصورة')));
+      }
     }
   }
 
@@ -101,20 +153,30 @@ class _ChatScreenState extends State<ChatScreen> {
             child: StreamBuilder<List<Message>>(
               stream:
                   ChatService.getConversationMessages(widget.conversationId),
+              initialData: const [],
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(child: CircularProgressIndicator());
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('حدث خطأ في تحميل الرسائل'));
+                  // طباعة الخطأ الكامل في الكونسول
+                  print(
+                      'Stream error in conversation ${widget.conversationId}: ${snapshot.error}');
+                  // اظهار رسالة للمستخدم مع نص الخطأ للdebug (يمكن ازالته لاحقًا)
+                  return Center(
+                      child:
+                          Text('حدث خطأ في تحميل الرسائل:\n${snapshot.error}'));
                 }
 
                 final messages = snapshot.data ?? [];
 
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollToBottom();
-                });
+                if (messages.length > _messageCount) {
+                  _messageCount = messages.length;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _scrollToBottom();
+                  });
+                }
 
                 return ListView.builder(
                   controller: _scrollController,
@@ -248,8 +310,32 @@ class MessageBubble extends StatelessWidget {
           children: [
             Text('📷 صورة', style: TextStyle(color: _getTextColor())),
             SizedBox(height: 4),
-            Image.network(message.content,
-                width: 200, height: 150, fit: BoxFit.cover),
+            Image.network(
+              message.content,
+              width: 200,
+              height: 150,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return SizedBox(
+                  width: 200,
+                  height: 150,
+                  child: Center(
+                      child: CircularProgressIndicator(
+                          value: progress.expectedTotalBytes != null
+                              ? progress.cumulativeBytesLoaded /
+                                  progress.expectedTotalBytes!
+                              : null)),
+                );
+              },
+              errorBuilder: (c, e, s) {
+                return SizedBox(
+                  width: 200,
+                  height: 150,
+                  child: Center(child: Text('فشل تحميل الصورة')),
+                );
+              },
+            )
           ],
         );
       case MessageType.location:

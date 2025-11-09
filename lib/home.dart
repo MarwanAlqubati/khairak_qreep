@@ -93,8 +93,7 @@ class LoPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const DonorHomePage(donorName: "أحمد"),
+                              builder: (context) => const DonorHomePage(),
                             ),
                           );
                         },
@@ -108,8 +107,7 @@ class LoPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const AssociationPage(
-                                  associationName: "جمعية البر"),
+                              builder: (context) => AssociationPage(),
                             ),
                           );
                         },

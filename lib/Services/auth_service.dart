@@ -93,6 +93,62 @@ class AuthService {
     return users;
   }
 
+  /// حفظ/تحديث بيانات المستخدم (سيقوم بتحديث الحقول الممررة فقط)
+  static Future<bool> updateUserData(
+      String uid, Map<String, dynamic> data) async {
+    try {
+      await _users.doc(uid).update(data);
+      return true;
+    } catch (e) {
+      print('Error updateUserData: $e');
+      return false;
+    }
+  }
+
+  /// إعادة المصادقة للمستخدم (مطلوبة قبل العمليات الحساسة مثل تغيير كلمة السر)
+  static Future<bool> reauthenticate(
+      String email, String currentPassword) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final cred =
+          EmailAuthProvider.credential(email: email, password: currentPassword);
+      await user.reauthenticateWithCredential(cred);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      print('reauth error: ${e.code} ${e.message}');
+      return false;
+    } catch (e) {
+      print('reauth unknown error: $e');
+      return false;
+    }
+  }
+
+  /// تغيير كلمة السر للمستخدم الحالي (يفترض أن يعيد المصادقة أولاً)
+  static Future<bool> changePassword(
+      String currentPassword, String newPassword) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final email = user.email;
+      if (email == null) return false;
+
+      final ok = await reauthenticate(email, currentPassword);
+      if (!ok) return false;
+
+      await user.updatePassword(newPassword);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      print('changePassword error: ${e.code} ${e.message}');
+      return false;
+    } catch (e) {
+      print('changePassword unknown error: $e');
+      return false;
+    }
+  }
+
   static Future<void> deleteUser(String uid) async {
     try {
       // أولاً: حذف بيانات المستخدم من Firestore

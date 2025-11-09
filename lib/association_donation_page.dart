@@ -32,9 +32,7 @@ class AssociationDonationPage extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const AssociationPage(
-                            associationName: "جمعية البر",
-                          ),
+                          builder: (_) => const AssociationPage(),
                         ),
                       );
                     },

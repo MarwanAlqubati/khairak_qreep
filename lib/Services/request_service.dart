@@ -14,6 +14,56 @@ class RequestsService {
       FirebaseFirestore.instance.collection('requests');
   static final _users = FirebaseFirestore.instance.collection('users');
 
+  /// يحدث حالة الطلب بالبحث عن المستند حسب حقل 'reqid'
+  static Future<bool> updateRequestStatus(
+      String reqid, String newStatus) async {
+    try {
+      final snapshot = await _requests.where('reqid', isEqualTo: reqid).get();
+
+      if (snapshot.docs.isEmpty) {
+        print("No request found with reqid $reqid");
+        return false;
+      }
+
+      for (var doc in snapshot.docs) {
+        await _requests.doc(doc.id).update({'satats': newStatus});
+      }
+
+      print("Request(s) with reqid $reqid updated to $newStatus");
+      return true;
+    } catch (e) {
+      print("Error updating request status: $e");
+      return false;
+    }
+  }
+
+  /// يحدث الطلب ليضيف donorid ويغير الحالة (مثلاً '1' = قيد التنفيذ/مقبول)
+  static Future<bool> assignDonorToRequest(
+      String reqid, String donorId, String newStatus) async {
+    try {
+      final snapshot = await _requests.where('reqid', isEqualTo: reqid).get();
+
+      if (snapshot.docs.isEmpty) {
+        print("No request found with reqid $reqid");
+        return false;
+      }
+
+      for (var doc in snapshot.docs) {
+        await _requests.doc(doc.id).update({
+          'donorid': donorId,
+          'satats': newStatus,
+        });
+      }
+
+      print(
+          "Assigned donor $donorId to request(s) $reqid and set status $newStatus");
+      return true;
+    } catch (e) {
+      print("Error assigning donor to request: $e");
+      return false;
+    }
+  }
+
   /// توليد رقم طلب فريد تصاعدي
   static Future<String> generateUniqueReqId() async {
     try {
@@ -101,6 +151,24 @@ class RequestsService {
     } catch (e) {
       print("Error fetching latest request: $e");
       return null;
+    }
+  }
+
+  static Future<List<AppRequest>> getRequestsNotAccepted(
+      String category) async {
+    try {
+      final snapshot = await _requests
+          .where('satats', isEqualTo: '0')
+          .where("category", isEqualTo: category)
+          .get();
+
+      final results = snapshot.docs
+          .map((doc) => AppRequest.fromMap(doc.id, doc.data()))
+          .toList();
+      return results;
+    } catch (e) {
+      print("Error fetching requests with donor data: $e");
+      return [];
     }
   }
 

@@ -3,7 +3,6 @@ import 'package:exakhairak_qreep/Services/request_service.dart';
 import 'package:flutter/material.dart';
 import 'package:exakhairak_qreep/models/app_Request.dart';
 
-import 'chat_page.dart';
 import 'beneficiary_page.dart';
 
 class TrackRequestsPage extends StatefulWidget {
@@ -17,6 +16,8 @@ class _TrackRequestsPageState extends State<TrackRequestsPage> {
   bool _isLoading = true;
   List<RequestWithDonor> _requests = [];
   String? _errorMessage;
+  // مجموعة لتتبع الطلبات التي هي قيد المعالجة الآن
+  final Set<String> _processingReqIds = {};
 
   @override
   void initState() {
@@ -71,6 +72,35 @@ class _TrackRequestsPageState extends State<TrackRequestsPage> {
         return 'تم الاستلام';
       default:
         return 'غير معروف';
+    }
+  }
+
+  Future<void> _changeRequestStatus(String reqid, String newStatus) async {
+    setState(() => _processingReqIds.add(reqid));
+
+    final success = await RequestsService.updateRequestStatus(reqid, newStatus);
+
+    setState(() => _processingReqIds.remove(reqid));
+
+    if (success) {
+      // للتأكد من تزامن البيانات نعيد تحميل القائمة
+      await _loadRequests();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newStatus == '2'
+              ? 'تم استلام الطلب بنجاح.'
+              : 'تم تحديث: لم يتم استلام الطلب.'),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('حدث خطأ أثناء تحديث حالة الطلب. حاول مرة أخرى.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -135,24 +165,14 @@ class _TrackRequestsPageState extends State<TrackRequestsPage> {
               Expanded(
                 child: _isLoading
                     ? const Center(
-                        child: CircularProgressIndicator(color: Colors.teal),
-                      )
+                        child: CircularProgressIndicator(color: Colors.teal))
                     : _errorMessage != null
                         ? Center(
-                            child: Text(
-                              _errorMessage!,
-                              style: const TextStyle(
-                                  color: Colors.red, fontSize: 16),
-                            ),
-                          )
+                            child: Text(_errorMessage!,
+                                style: const TextStyle(color: Colors.red)))
                         : _requests.isEmpty
                             ? const Center(
-                                child: Text(
-                                  "لا توجد طلبات حتى الآن",
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 18),
-                                ),
-                              )
+                                child: Text("لا توجد طلبات حتى الآن"))
                             : RefreshIndicator(
                                 onRefresh: _loadRequests,
                                 color: Colors.teal,
@@ -162,8 +182,8 @@ class _TrackRequestsPageState extends State<TrackRequestsPage> {
                                   itemCount: _requests.length,
                                   itemBuilder: (context, index) {
                                     final req = _requests[index];
-
-                                    return _buildRequestCard(context, req);
+                                    return _buildRequestCard(
+                                        context, req, index); // مَرّر index
                                   },
                                 ),
                               ),
@@ -176,14 +196,13 @@ class _TrackRequestsPageState extends State<TrackRequestsPage> {
   }
 
   Widget _buildRequestCard(
-      BuildContext context, RequestWithDonor reqWithDonor) {
+      BuildContext context, RequestWithDonor reqWithDonor, int index) {
     final req = reqWithDonor.request;
     final donor = reqWithDonor.donor;
 
     final statusText = _getStatusText(req.satats);
     final statusColor = _getStatusColor(req.satats);
-    print(req);
-    print(donor);
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -193,90 +212,98 @@ class _TrackRequestsPageState extends State<TrackRequestsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 عنوان الفئة و حالة الطلب
+            // عنوان و حالة
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  req.category,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal,
-                  ),
-                ),
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(req.category,
+                    style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal)),
+                Text(statusText,
+                    style: TextStyle(
+                        fontSize: 16,
+                        color: statusColor,
+                        fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 4),
-
-            // 🔹 رقم الطلب
-            Text(
-              "رقم الطلب: ${req.reqid}",
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // 🔹 وصف الطلب
-            Text(
-              req.description,
-              style: const TextStyle(fontSize: 16, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-
-            // 🔹 المبلغ إن وجد
-            if (req.pay != null && req.pay!.isNotEmpty)
-              Text(
-                "المبلغ: ${req.pay} ر.س",
+            Text("رقم الطلب: ${req.reqid}",
                 style: const TextStyle(
-                    fontSize: 15,
-                    color: Colors.amber,
-                    fontWeight: FontWeight.bold),
-              ),
+                    fontSize: 14,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(req.description,
+                style: const TextStyle(fontSize: 16, color: Colors.black87)),
             const SizedBox(height: 12),
 
-            // 🔹 زر التواصل مع المتبرع
-            // if (req.satats == '1' && donor != null)
-            //   Center(
-            //     child: ElevatedButton.icon(
-            //       onPressed: () {
-            //         Navigator.push(
-            //           context,
-            //           MaterialPageRoute(
-            //             builder: (_) => ChatPage(
-            //               currentUserId: AuthService.currentUser()?.uid ?? '',
-            //               targetUserId: donor.uid,
-            //               targetUserName: donor.name,
-            //             ),
-            //           ),
-            //         );
-            //       },
-            //       icon: const Icon(Icons.chat, color: Colors.white),
-            //       label: const Text(
-            //         "تواصل مع المتبرع",
-            //         style: TextStyle(color: Colors.white, fontSize: 16),
-            //       ),
-            //       style: ElevatedButton.styleFrom(
-            //         backgroundColor: Colors.teal,
-            //         padding: const EdgeInsets.symmetric(
-            //             horizontal: 25, vertical: 10),
-            //         shape: RoundedRectangleBorder(
-            //           borderRadius: BorderRadius.circular(10),
-            //         ),
-            //       ),
-            //     ),
-            //   ),
+            if (req.pay != null && req.pay!.isNotEmpty)
+              Text("المبلغ: ${req.pay} ر.س",
+                  style: const TextStyle(
+                      fontSize: 15,
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+
+            // إذا كانت الحالة 1 نعرض زرين: "لم يتم استلام" و "تم الاستلام"
+            if (req.satats == '1')
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _processingReqIds.contains(req.reqid)
+                          ? null
+                          : () => _changeRequestStatus(req.reqid, '0'),
+                      icon: _processingReqIds.contains(req.reqid)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.close),
+                      label: const Text("لم يتم استلام الطلب"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange.shade700,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _processingReqIds.contains(req.reqid)
+                          ? null
+                          : () => _changeRequestStatus(req.reqid, '2'),
+                      icon: _processingReqIds.contains(req.reqid)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check),
+                      label: const Text("تم الاستلام"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+            // لو حاب تربط زر للتواصل مع المتبرع اعرضه هنا إن وُجد donor
+            // if (donor != null) ...[
+            //   const SizedBox(height: 12),
+            //   // مثال: زر اتصال أو رسالة (تعديله حسب بيانات donor)
+            //   Text("متبرع: ${donor.name ?? '---'}",
+            //       style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            // ],
           ],
         ),
       ),

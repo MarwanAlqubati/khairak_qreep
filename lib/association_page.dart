@@ -1,20 +1,66 @@
+import 'package:exakhairak_qreep/Services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'association_individual_donation_page.dart';
 import 'association_volunteer_page.dart'; //
 import 'home.dart';
 import 'app_drawer.dart';
 
-class AssociationPage extends StatelessWidget {
-  final String associationName;
+// class AssociationPage extends StatelessWidget {
 
-  const AssociationPage({super.key, required this.associationName});
+class AssociationPage extends StatefulWidget {
+  const AssociationPage({
+    super.key,
+  });
+
+  @override
+  State<AssociationPage> createState() => _AssociationPageState();
+}
+
+class _AssociationPageState extends State<AssociationPage> {
+  String? userName;
+  String? userRole;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // هنا يمكنك إضافة الكود لتحميل بيانات المستخدم
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = await AuthService.currentUser();
+
+      final uid = user!.uid;
+      final doc = await AuthService.getUserDoc(uid);
+
+      setState(() {
+        userName = doc['name'] ?? 'مستخدم غير معروف';
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('خطأ في تحميل بيانات المستخدم: $e');
+      setState(() {
+        userName = 'خطأ في تحميل البيانات';
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.teal),
+        ),
+      );
+    }
     return Scaffold(
       drawer: AppDrawer(
-        userName: associationName,
-        userRole: "جمعية",
+        userName: userName ?? "الجمعية ",
+        userRole: userRole ?? "جمعية",
       ),
       body: Builder(
         builder: (context) => Container(
@@ -73,7 +119,7 @@ class AssociationPage extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerRight,
                     child: Text(
-                      "المستخدم: $associationName",
+                      "الجمعيه : $userName",
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

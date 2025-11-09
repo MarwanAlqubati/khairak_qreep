@@ -1,6 +1,7 @@
 import 'package:exakhairak_qreep/Chat/users_list_screen.dart';
+import 'package:exakhairak_qreep/Services/auth_service.dart';
 import 'package:exakhairak_qreep/Services/chat_service.dart';
-import 'package:exakhairak_qreep/Services/firebase_services.dart';
+
 import 'package:exakhairak_qreep/models/app_user.dart';
 import 'package:exakhairak_qreep/models/conversation.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +17,7 @@ class ConversationsListScreen extends StatefulWidget {
 }
 
 class _ConversationsListScreenState extends State<ConversationsListScreen> {
-  final User? currentUser = FirebaseAuth.instance.currentUser;
+  final User? currentUser = AuthService.currentUser();
 
   @override
   Widget build(BuildContext context) {

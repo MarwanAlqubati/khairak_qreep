@@ -53,8 +53,8 @@ class _AssociationIndividualDonationPageState
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const AssociationPage(
-                                associationName: "جمعية"), // ← اسم الجمعية
+                            builder: (_) =>
+                                const AssociationPage(), // ← اسم الجمعية
                           ),
                         );
                       },

@@ -1,6 +1,11 @@
+// lib/pages/donor_donation_other_page.dart
+import 'package:exakhairak_qreep/widgets/donation_shared.dart';
 import 'package:flutter/material.dart';
-import 'donor_home_page.dart';
-import 'donor_chat_start_page.dart';
+import 'package:exakhairak_qreep/Services/request_service.dart';
+import 'package:exakhairak_qreep/Services/donation_service.dart';
+import 'package:exakhairak_qreep/Services/auth_service.dart';
+import 'package:exakhairak_qreep/models/app_Request.dart';
+import 'package:exakhairak_qreep/models/app_Donation.dart';
 
 class DonorDonationOtherPage extends StatefulWidget {
   const DonorDonationOtherPage({super.key});
@@ -11,267 +16,312 @@ class DonorDonationOtherPage extends StatefulWidget {
 
 class _DonorDonationOtherPageState extends State<DonorDonationOtherPage> {
   String? selectedCategory;
-  String? selectedBeneficiary;
+  AppRequest? selectedRequest;
 
-  final Map<String, List<String>> categoryBeneficiaries = {
-    "أجهزة": ["مستفيد 001", "مستفيد 003"],
-    "أثاث": ["مستفيد 002", "مستفيد 004"],
-    "أدوات": ["مستفيد 005", "مستفيد 006"],
-  };
+  // قوائم وداتا
+  final List<String> categories = ["أجهزة", "أثاث", "أدوات"];
+  List<AppRequest> _availableRequests = [];
+
+  bool _loadingRequests = false;
+  bool _processingDonation = false;
+
+  // حقل وصف التبرع (اختياري)
+  final TextEditingController _donationDescCtrl = TextEditingController();
+
+  // جلب الطلبات غير المقبولة (satats == '0') حسب الفئة
+  Future<void> _loadRequestsForCategory(String category) async {
+    setState(() {
+      _loadingRequests = true;
+      _availableRequests = [];
+      selectedRequest = null;
+    });
+
+    try {
+      final results = await RequestsService.getRequestsNotAccepted(category);
+      setState(() {
+        _availableRequests = results;
+      });
+    } catch (e) {
+      print("Error loading requests: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('حدث خطأ أثناء جلب الطلبات')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingRequests = false);
+    }
+  }
+
+  // انشاء تبرع وربطه بالطلب
+  Future<void> _performDonation(AppRequest req, String desc) async {
+    final user = AuthService.currentUser();
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('يجب تسجيل الدخول لإتمام التبرع.'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+
+    setState(() => _processingDonation = true);
+
+    try {
+      // توليد رقم تبرع فريد
+      final donationNumber = await DonationService.generateUniqueDonationId();
+
+      final donation = AppDonation(
+        donorId: user.uid,
+        donorNumber: donationNumber,
+        requestId: req.reqid,
+        description: desc,
+        satats: '1', // افتراضي: 1 = قيد التنفيذ/مقبول
+      );
+
+      // إضافة التبرع
+      await DonationService.addDonation(donation);
+
+      // ربط التبرع بالطلب (تحديث الطلب: donorid + satats)
+      await RequestsService.assignDonorToRequest(req.reqid, user.uid, '1');
+
+      // عرض إيصال جميل (BottomSheet)
+      if (mounted) {
+        await showDonationReceiptBottomSheet(
+          context: context,
+          donationNumber: donationNumber,
+          req: req,
+          description: desc,
+          amount: null,
+          onDone: () {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('شكراً لتبرعك 💚')));
+            // بعد التبرع نعيد تحميل الطلبات المتاحة للفئة
+            if (selectedCategory != null)
+              _loadRequestsForCategory(selectedCategory!);
+          },
+        );
+      }
+    } catch (e) {
+      print("Donation error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('فشل إجراء التبرع. حاول مرة أخرى.'),
+            backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _processingDonation = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _donationDescCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // AppBar جميل
+      appBar: AppBar(
+        title: const Text('صفحة التبرع'),
+        backgroundColor: Colors.teal,
+        centerTitle: true,
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xffe9fdfb),
-              Colors.white,
-            ],
-          ),
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xffe9fdfb), Colors.white]),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(25),
+            padding: const EdgeInsets.all(18.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 🔹 الصف العلوي (الشعار + اسم المتبرع)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Icon(Icons.volunteer_activism,
-                        color: Colors.teal, size: 50),
-                    const Text(
-                      "المتبرع: أحمد",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
-                    ),
-                  ],
+                // بطاقة المتبرع (إعادة استخدام الهيدر)
+                donorHeaderCard(
+                  donorEmail: AuthService.currentUser()?.email ?? 'ضيف',
+                  onRefresh: () {
+                    if (selectedCategory != null)
+                      _loadRequestsForCategory(selectedCategory!);
+                  },
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                // 🔹 زر الرجوع
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const DonorHomePage(donorName: "أحمد"),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    label: const Text(
-                      "الرجوع",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal.shade700,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 10),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // 🔹 العنوان الرئيسي
-                Center(
-                  child: Text(
-                    "تبرعك الغِير ذلك",
+                // اختيار الفئة
+                Text('اختر فئة التبرع',
                     style: TextStyle(
-                      color: Colors.teal.shade700,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade300)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      hint: const Text('اختر فئة'),
+                      value: selectedCategory,
+                      items: categories
+                          .map((c) => DropdownMenuItem(
+                              value: c,
+                              child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Text(c))))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() {
+                          selectedCategory = v;
+                          _availableRequests = [];
+                          selectedRequest = null;
+                        });
+                        _loadRequestsForCategory(v);
+                      },
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
 
-                // ✅ القائمة الأولى (اختر فئة التبرع)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Text(
-                        "اختر فئة تبرعك:",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          border:
-                              Border.all(color: Colors.grey.shade400, width: 1),
-                          borderRadius: BorderRadius.circular(10),
-                          color: const Color(0xFFB2DFDB), // تركوازي فاتح
-                        ),
-                        child: DropdownButton<String>(
-                          isExpanded: true,
-                          underline: const SizedBox(),
-                          alignment: Alignment.centerRight,
-                          hint: const Text(
-                            "اختر فئة التبرع",
-                            style: TextStyle(fontSize: 17),
-                          ),
-                          value: selectedCategory,
-                          items: categoryBeneficiaries.keys.map((String key) {
-                            return DropdownMenuItem<String>(
-                              value: key,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  key,
-                                  style: const TextStyle(fontSize: 17),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              selectedCategory = newValue;
-                              selectedBeneficiary = null;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 25),
-
-                // ✅ القائمة الثانية (اختر المستفيد)
-                if (selectedCategory != null)
-                  Align(
-                    alignment: Alignment.centerRight,
+                // عرض الطلبات المتاحة
+                if (_loadingRequests)
+                  const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator()))
+                else if (selectedCategory != null && _availableRequests.isEmpty)
+                  Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text('لا توجد طلبات متاحة للفئة المختارة',
+                          style: TextStyle(color: Colors.grey.shade600)))
+                else if (_availableRequests.isNotEmpty)
+                  Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          "اختر المستفيد:",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                                color: Colors.grey.shade400, width: 1),
-                            borderRadius: BorderRadius.circular(10),
-                            color: Colors.white,
-                          ),
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            underline: const SizedBox(),
-                            alignment: Alignment.centerRight,
-                            hint: const Text(
-                              "اختر مستفيد",
-                              style: TextStyle(fontSize: 17),
-                            ),
-                            value: selectedBeneficiary,
-                            items: categoryBeneficiaries[selectedCategory]!
-                                .map((String item) {
-                              return DropdownMenuItem<String>(
-                                value: item,
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Text(
-                                    item,
-                                    style: const TextStyle(fontSize: 17),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedBeneficiary = newValue;
-                              });
-                            },
+                        Text('اختر الطلب',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade800)),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: requestListView(
+                            requests: _availableRequests,
+                            selectedReqId: selectedRequest?.reqid,
+                            onSelect: (r) =>
+                                setState(() => selectedRequest = r),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                const Spacer(),
-
-                // ✅ زر تأكيد التبرع
-                Center(
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: selectedBeneficiary == null
-                          ? null
-                          : () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'تم تأكيد التبرع لـ $selectedBeneficiary بنجاح 💚',
-                                  ),
-                                  backgroundColor: Colors.teal,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                              Future.delayed(const Duration(seconds: 2), () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DonorChatStartPage(
-                                      donationType: "غير ذلك",
-                                      icon: Icons.card_giftcard,
-                                      beneficiaryName: selectedBeneficiary!,
-                                      phoneNumber: "0501234567",
-                                    ),
-                                  ),
-                                );
-                              });
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        "تأكيد التبرع",
-                        style: TextStyle(
-                          color: Colors.white, // ✅ النص أبيض
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                // تفاصيل الطلب و زر التبرع
+                if (selectedRequest != null) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    elevation: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(children: [
+                            Icon(Icons.info_outline,
+                                color: Colors.teal.shade700),
+                            const SizedBox(width: 8),
+                            Text('تفاصيل الطلب',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.teal.shade700))
+                          ]),
+                          const SizedBox(height: 8),
+                          Text(selectedRequest!.description ?? '-',
+                              style: const TextStyle(fontSize: 14)),
+                          const SizedBox(height: 8),
+                          if (selectedRequest!.pay != null &&
+                              selectedRequest!.pay!.isNotEmpty)
+                            Text('المبلغ: ${selectedRequest!.pay} ر.س',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange)),
+                          const SizedBox(height: 8),
+                          Text('رقم الطلب: ${selectedRequest!.reqid}'),
+                          const SizedBox(height: 8),
+                          // حقل ملاحظة التبرع
+                          TextFormField(
+                            controller: _donationDescCtrl,
+                            minLines: 1,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                                labelText: 'إضافة ملاحظة (اختياري)'),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 48,
+                            child: ElevatedButton.icon(
+                              onPressed: _processingDonation
+                                  ? null
+                                  : () => showConfirmDialog(
+                                        context: context,
+                                        title: 'تأكيد التبرع',
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                                'هل تريد تأكيد التبرع لهذا الطلب؟'),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                                'الطلب: ${selectedRequest!.category} • رقم ${selectedRequest!.reqid}',
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold)),
+                                            const SizedBox(height: 8),
+                                            if (selectedRequest!.pay != null &&
+                                                selectedRequest!
+                                                    .pay!.isNotEmpty)
+                                              Text(
+                                                  'المبلغ: ${selectedRequest!.pay} ر.س'),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                                'ملاحظة: ${_donationDescCtrl.text.isEmpty ? 'لا يوجد' : _donationDescCtrl.text}'),
+                                          ],
+                                        ),
+                                        onConfirm: () => _performDonation(
+                                            selectedRequest!,
+                                            _donationDescCtrl.text.trim()),
+                                      ),
+                              icon: _processingDonation
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.volunteer_activism),
+                              label: Text(_processingDonation
+                                  ? 'جارٍ إجراء التبرع...'
+                                  : 'تبرع الآن'),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.teal),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 30),
+                ],
               ],
             ),
           ),

@@ -43,8 +43,7 @@ class DonorChatStartPage extends StatelessWidget {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              const DonorHomePage(donorName: "أحمد"),
+                          builder: (_) => const DonorHomePage(),
                         ),
                       );
                     },

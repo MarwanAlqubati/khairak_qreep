@@ -1,3 +1,4 @@
+import 'package:exakhairak_qreep/Services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'home.dart';
 import 'donor_donation_money_page.dart';
@@ -6,15 +7,59 @@ import 'donor_donation_clothes_page.dart';
 import 'donor_donation_other_page.dart';
 import 'app_drawer.dart'; // ✅ القائمة الجانبية
 
-class DonorHomePage extends StatelessWidget {
-  final String donorName;
+class DonorHomePage extends StatefulWidget {
+  const DonorHomePage({super.key});
 
-  const DonorHomePage({super.key, required this.donorName});
+  @override
+  State<DonorHomePage> createState() => _DonorHomePageState();
+}
+
+class _DonorHomePageState extends State<DonorHomePage> {
+  String? userName;
+  String? userRole;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // هنا يمكنك إضافة الكود لتحميل بيانات المستخدم
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = await AuthService.currentUser();
+
+      final uid = user!.uid;
+      final doc = await AuthService.getUserDoc(uid);
+
+      setState(() {
+        userName = doc['name'] ?? 'مستخدم غير معروف';
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('خطأ في تحميل بيانات المستخدم: $e');
+      setState(() {
+        userName = 'خطأ في تحميل البيانات';
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.teal),
+        ),
+      );
+    }
     return Scaffold(
-      drawer: const AppDrawer(userName: "أحمد", userRole: "متبرع"), // ✅ القائمة
+      drawer: AppDrawer(
+        userName: userName ?? "المتبرع ",
+        userRole: userRole ?? "متبرع",
+      ), // ✅ القائمة
       body: Builder(
         builder: (context) => Container(
           decoration: BoxDecoration(
@@ -57,7 +102,7 @@ class DonorHomePage extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerRight,
                     child: Text(
-                      'المتبرع: $donorName',
+                      'المتبرع: ${userName ?? "المتبرع"}',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,

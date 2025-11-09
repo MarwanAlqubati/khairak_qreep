@@ -99,7 +99,7 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
 
                 // 🔹 الشعار
                 const Icon(Icons.volunteer_activism,
-                    color: Colors.teal, size: 80),
+                    color: Colors.teal, size: 70),
                 const SizedBox(height: 15),
 
                 // 🔹 العنوان
@@ -112,7 +112,12 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
+
+                // 🔹 كارد التذكير/النصيحة الدينية (مضاف)
+                _buildReminderCard(),
+
+                const SizedBox(height: 20),
 
                 // 🔹 حقل المبلغ المطلوب
                 Padding(
@@ -239,6 +244,65 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
                   _buildInfoCard(
                       "✅ تم تقديم طلب تبرع مالي بمبلغ ${submittedAmount ?? ''} ريال بنجاح"),
                 const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔹 تصميم كارد التذكير (النص المضاف)
+  Widget _buildReminderCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            // إطار خفيف بلون التيـل
+            border: Border.all(color: Colors.teal.shade100),
+            color: Colors.white,
+          ),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: const [
+                // الآية
+                Text(
+                  "قال تعالى: «وَلَا تَأْكُلُوا أَمْوَالَكُمْ بَيْنَكُم بِالْبَاطِلِ» – البقرة: 188",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.teal,
+                  ),
+                ),
+                SizedBox(height: 8),
+                // التحذير
+                Text(
+                  "احذر تأخذ تبرع ما تستحقّه، فهو مال الناس بالباطل.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 8),
+                // التذكير
+                Text(
+                  "تذكير:\nرزقك مكتوب، فلا تأخذه بخداع، لأن المال الحرام ما فيه بركة",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
