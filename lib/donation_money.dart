@@ -181,7 +181,7 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
                       },
                       child: _buildCard(Icons.receipt_long, "رقم الطلب"),
                     ),
-                    const SizedBox(width: 30), // المسافة بين الكاردين
+                    const SizedBox(width: 20), // المسافة بين الكاردين
                     GestureDetector(
                       onTap: () async {
                         if (_amountController.text.isEmpty) {
@@ -317,7 +317,7 @@ class _DonationMoneyPageState extends State<DonationMoneyPage> {
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Container(
-        width: 150,
+        width: 140,
         height: 150,
         padding: const EdgeInsets.all(18),
         child: Column(

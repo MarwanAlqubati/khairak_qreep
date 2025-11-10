@@ -17,23 +17,25 @@ void main() async {
 class KhairakQareebApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Khairak Qareeb',
-      theme: ThemeData(
-        primarySwatch: Colors.teal,
-        fontFamily: 'Roboto',
-      ),
-      // ✅ أول صفحة تظهر هي Splash
-      initialRoute: '/',
-      routes: {
-        '/': (context) => SplashScreen(), // البداية
-        '/login': (context) => LoginPage(), // بعدها صفحة تسجيل الدخول
-        '/signup': (context) => SignUpPage(), // بعدها صفحة التسجيل
-        '/reset_password': (context) => ResetPasswordPage(),
-        '/admin': (context) => AdminPage(),
-        '/lo': (context) => LoPage(),
-      },
-    );
+    return Directionality(
+        textDirection: TextDirection.ltr,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Khairak Qareeb',
+          theme: ThemeData(
+            primarySwatch: Colors.teal,
+            fontFamily: 'Roboto',
+          ),
+          // ✅ أول صفحة تظهر هي Splash
+          initialRoute: '/',
+          routes: {
+            '/': (context) => SplashScreen(), // البداية
+            '/login': (context) => LoginPage(), // بعدها صفحة تسجيل الدخول
+            '/signup': (context) => SignUpPage(), // بعدها صفحة التسجيل
+            '/reset_password': (context) => ResetPasswordPage(),
+            '/admin': (context) => AdminPage(),
+            '/lo': (context) => LoPage(),
+          },
+        ));
   }
 }

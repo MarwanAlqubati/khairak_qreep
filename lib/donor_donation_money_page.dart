@@ -65,8 +65,7 @@ class _DonorDonationMoneyPageState extends State<DonorDonationMoneyPage> {
     try {
       final donationNumber = await DonationService.generateUniqueDonationId();
 
-      final description = 'مبلغ: ${amount.toStringAsFixed(2)} ر.س' +
-          (note.isNotEmpty ? '\nملاحظة: $note' : '');
+      final description = (note.isNotEmpty ? '\nملاحظة: $note' : '');
 
       final donation = AppDonation(
         donorId: user.uid,
@@ -111,12 +110,12 @@ class _DonorDonationMoneyPageState extends State<DonorDonationMoneyPage> {
     final amount = double.tryParse(amountText.replaceAll(',', '.')) ?? 0.0;
     final note = _noteCtrl.text.trim();
 
-    if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('أدخل مبلغ صحيح أكبر من صفر'),
-          backgroundColor: Colors.orange));
-      return;
-    }
+    // if (amount <= 0) {
+    //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+    //       content: Text('أدخل مبلغ صحيح أكبر من صفر'),
+    //       backgroundColor: Colors.orange));
+    //   return;
+    // }
 
     showConfirmDialog(
       context: context,
@@ -208,14 +207,7 @@ class _DonorDonationMoneyPageState extends State<DonorDonationMoneyPage> {
                               const SizedBox(height: 8),
                               Text('رقم الطلب: ${selectedRequest!.reqid}'),
                               const SizedBox(height: 12),
-                              TextFormField(
-                                  controller: _amountCtrl,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  decoration: const InputDecoration(
-                                      prefixIcon: Icon(Icons.attach_money),
-                                      labelText: 'المبلغ (ر.س)')),
+                              Text('المبلغ : ${selectedRequest!.pay}'),
                               const SizedBox(height: 8),
                               TextFormField(
                                   controller: _noteCtrl,

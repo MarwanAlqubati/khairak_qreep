@@ -1,8 +1,10 @@
+import 'package:exakhairak_qreep/constants/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:exakhairak_qreep/Services/auth_service.dart';
 import 'package:exakhairak_qreep/Services/charity_service.dart';
 import 'package:exakhairak_qreep/models/app_Charity.dart';
+import 'package:exakhairak_qreep/edit_campaign_page.dart';
 
 class ManageCampaignsPage extends StatefulWidget {
   const ManageCampaignsPage({super.key});
@@ -24,29 +26,16 @@ class _ManageCampaignsPageState extends State<ManageCampaignsPage> {
     final currentUser = AuthService.currentUser();
     final userid = currentUser?.uid;
     if (userid == null) {
-      // إذا المستخدم غير مسجل، اجعل المستقبل يعيد قائمة فارغة
       _campaignsFuture = Future.value(<AppCharity>[]);
     } else {
-      // لا نستخدم await هنا؛ نُعيّن Future مباشرة
       _campaignsFuture = CharityService.getAllUser(userid);
     }
-    // حدث الواجهة ليستخدم Future الجديد
     setState(() {});
   }
 
-  IconData _iconFromName(String name) {
-    const iconMap = {
-      'school': Icons.school,
-      'ac_unit': Icons.ac_unit,
-      'fastfood': Icons.fastfood,
-      'family_restroom': Icons.family_restroom,
-      'volunteer_activism': Icons.volunteer_activism,
-      'local_hospital': Icons.local_hospital,
-      'handshake': Icons.handshake,
-      'favorite': Icons.favorite,
-      'campaign': Icons.campaign,
-    };
-    return iconMap[name] ?? Icons.campaign;
+  // دالة محسنة لتحويل اسم الأيقونة المخزنة إلى IconData
+  IconData _iconFromName(String iconName) {
+    return AppIcons.getIconFromName(iconName);
   }
 
   Future<void> _toggleStatus(AppCharity charity) async {
@@ -65,10 +54,7 @@ class _ManageCampaignsPageState extends State<ManageCampaignsPage> {
           .collection('charity')
           .doc(charity.uid)
           .update({'satats': newStatus});
-      // حدّث القيمة محليًا ثم أعد تحميل القائمة
-      // charity.satats = newStatus;
-      setState(() {}); // لتحديث الواجهة السريعة
-      // إعادة تحميل من السيرفر للتأكد من التزامن
+      setState(() {});
       _loadCampaigns();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تحديث حالة الحملة بنجاح')),
@@ -199,7 +185,7 @@ class _ManageCampaignsPageState extends State<ManageCampaignsPage> {
                                   ListTile(
                                     contentPadding: EdgeInsets.zero,
                                     leading: Icon(_iconFromName(c.iconName),
-                                        color: Colors.teal.shade700),
+                                        color: Colors.teal.shade700, size: 30),
                                     title: Text(c.titlle ?? 'بدون عنوان',
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold)),
@@ -210,8 +196,20 @@ class _ManageCampaignsPageState extends State<ManageCampaignsPage> {
                                         IconButton(
                                           icon: const Icon(Icons.edit,
                                               color: Colors.blue),
-                                          onPressed: () {
-                                            // يمكنك فتح صفحة تعديل هنا وتمرير AppCharity
+                                          onPressed: () async {
+                                            final updated =
+                                                await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    EditCampaignPage(
+                                                        charity: c),
+                                              ),
+                                            );
+
+                                            if (updated == true) {
+                                              _loadCampaigns();
+                                            }
                                           },
                                         ),
                                         IconButton(

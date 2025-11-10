@@ -119,7 +119,7 @@ class _BeneficiaryPageState extends State<BeneficiaryPage> {
                   child: Padding(
                     padding: const EdgeInsets.only(right: 20),
                     child: Text(
-                      " ${userName ?? 'غير معروف'}",
+                      "المستفيد : ${userName ?? 'غير معروف'}",
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

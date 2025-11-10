@@ -251,7 +251,7 @@ class ChatService {
   static Stream<List<Message>> getConversationMessages(String conversationId) {
     return _messages
         .where('conversationId', isEqualTo: conversationId)
-        .orderBy('timestamp', descending: false)
+        // .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Message.fromMap(doc.data(), doc.id))

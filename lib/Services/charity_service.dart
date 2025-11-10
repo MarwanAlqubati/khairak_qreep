@@ -22,7 +22,7 @@ class CharityService {
   /// جلب العناصر النشطة (satats == '1')
   static Future<List<AppCharity>> getAllUser(String userid) async {
     try {
-      final snapshot = await _charity.where(userid, isEqualTo: userid).get();
+      final snapshot = await _charity.where('userid', isEqualTo: userid).get();
       final appCharity =
           snapshot.docs.map((doc) => AppCharity.fromDocument(doc)).toList();
       debugPrint("Fetched ${appCharity.length} active charities.");

@@ -30,27 +30,6 @@ class LoPage extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => LoginPage()),
-                        );
-                      },
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      label: const Text(
-                        "رجوع",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal.shade700,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 10),
-                      ),
-                    ),
                     const Text(
                       "اختر دورك",
                       style: TextStyle(

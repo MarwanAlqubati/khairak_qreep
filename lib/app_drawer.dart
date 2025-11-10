@@ -87,14 +87,11 @@ class AppDrawer extends StatelessWidget {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => ConversationsListScreen()),
+                  MaterialPageRoute(
+                      builder: (_) => ConversationsListScreen(
+                            userRole: userRole,
+                          )),
                 );
-                // Navigator.pop(context);
-                // ScaffoldMessenger.of(context).showSnackBar(
-                //   const SnackBar(
-                //     content: Text("سيتم عرض الطلبات قريباً 💚"),
-                //   ),
-                // );
               },
             ),
 

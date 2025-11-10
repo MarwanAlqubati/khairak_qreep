@@ -12,12 +12,19 @@ import 'chat_screen.dart';
 
 class ConversationsListScreen extends StatefulWidget {
   @override
+  final String userRole;
+  ConversationsListScreen({super.key, required this.userRole});
   _ConversationsListScreenState createState() =>
       _ConversationsListScreenState();
 }
 
 class _ConversationsListScreenState extends State<ConversationsListScreen> {
   final User? currentUser = AuthService.currentUser();
+  late String userRole;
+  @override
+  void initState() {
+    userRole = widget.userRole;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,16 +42,19 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: Icon(Icons.person_add),
-            onPressed: () {
-              // الانتقال إلى قائمة المستخدمين لبدء محادثة جديدة
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => UsersListScreen()),
-              );
-            },
-          ),
+          userRole == "جمعية"
+              ? IconButton(
+                  icon: Icon(Icons.person_add),
+                  onPressed: () {
+                    // الانتقال إلى قائمة المستخدمين لبدء محادثة جديدة
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => UsersListScreen()),
+                    );
+                  },
+                )
+              : SizedBox(),
         ],
       ),
       body: StreamBuilder<List<Conversation>>(
@@ -90,25 +100,25 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                   SizedBox(height: 10),
-                  Text(
-                    'ابدأ محادثة جديدة مع مستخدم آخر',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => UsersListScreen()),
-                      );
-                    },
-                    child: Text('بدء محادثة جديدة'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
+                  // Text(
+                  //   'ابدأ محادثة جديدة مع مستخدم آخر',
+                  //   style: TextStyle(fontSize: 14, color: Colors.grey),
+                  // ),
+                  // SizedBox(height: 20),
+                  // ElevatedButton(
+                  //   onPressed: () {
+                  //     Navigator.push(
+                  //       context,
+                  //       MaterialPageRoute(
+                  //           builder: (context) => UsersListScreen()),
+                  //     );
+                  //   },
+                  //   child: Text('بدء محادثة جديدة'),
+                  //   style: ElevatedButton.styleFrom(
+                  //     backgroundColor: Colors.teal,
+                  //     foregroundColor: Colors.white,
+                  //   ),
+                  // ),
                 ],
               ),
             );

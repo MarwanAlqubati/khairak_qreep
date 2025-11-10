@@ -1,4 +1,3 @@
-// lib/widgets/donation_shared.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:exakhairak_qreep/models/app_Request.dart';
@@ -110,7 +109,7 @@ Future<void> showDonationReceiptBottomSheet({
   double? amount,
   VoidCallback? onDone,
 }) {
-  final now = DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now());
+  final now = DateFormat('yyyy-MM-dd').format(DateTime.now());
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
