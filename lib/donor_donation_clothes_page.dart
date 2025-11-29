@@ -1,4 +1,5 @@
 // lib/pages/donor_donation_clothes_page.dart
+import 'package:exakhairak_qreep/Services/chat_service.dart';
 import 'package:exakhairak_qreep/widgets/donation_shared.dart';
 import 'package:flutter/material.dart';
 import 'package:exakhairak_qreep/Services/request_service.dart';
@@ -81,6 +82,11 @@ class _DonorDonationClothesPageState extends State<DonorDonationClothesPage> {
 
       await DonationService.addDonation(donation);
       await RequestsService.assignDonorToRequest(req.reqid, user.uid, '1');
+      // إنشاء أو الحصول على المحادثة
+      await ChatService.getOrCreateConversation(
+        user.uid,
+        req.needid,
+      );
 
       if (!mounted) return;
 

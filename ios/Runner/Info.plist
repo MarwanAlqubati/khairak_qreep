@@ -47,5 +47,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+<string>نحتاج الوصول لموقعك لمشاركة موقعك مع الطرف الآخر أثناء المحادثة.</string>
+
+<!-- إذا كنت تحتاج دائمًا -->
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>نستخدم الموقع لتحسين تجربة التطبيق عند الحاجة.</string>
+
+<key>NSPhotoLibraryUsageDescription</key>
+<string>نحتاج الوصول للصور لإرسالها في المحادثة.</string>
+
+<key>NSCameraUsageDescription</key>
+<string>نحتاج الوصول للكاميرا لالتقاط صور وإرسالها.</string>
+
 </dict>
 </plist>

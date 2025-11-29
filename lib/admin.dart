@@ -153,40 +153,40 @@ class AdminPage extends StatelessWidget {
                         ),
                       ),
 
-                      Card(
-                        elevation: 5,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15)),
-                        child: Container(
-                          width: 160,
-                          height: 160,
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.settings,
-                                    size: 60, color: Colors.teal),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => AppSettingsPage()),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 10),
-                              const Text(
-                                "إعدادات التطبيق",
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      // Card(
+                      //   elevation: 5,
+                      //   shape: RoundedRectangleBorder(
+                      //       borderRadius: BorderRadius.circular(15)),
+                      //   child: Container(
+                      //     width: 160,
+                      //     height: 160,
+                      //     padding: const EdgeInsets.all(20),
+                      //     child: Column(
+                      //       mainAxisAlignment: MainAxisAlignment.center,
+                      //       children: [
+                      //         IconButton(
+                      //           icon: const Icon(Icons.settings,
+                      //               size: 60, color: Colors.teal),
+                      //           onPressed: () {
+                      //             Navigator.push(
+                      //               context,
+                      //               MaterialPageRoute(
+                      //                   builder: (_) => AppSettingsPage()),
+                      //             );
+                      //           },
+                      //         ),
+                      //         const SizedBox(height: 10),
+                      //         const Text(
+                      //           "إعدادات التطبيق",
+                      //           style: TextStyle(
+                      //               fontSize: 16,
+                      //               fontWeight: FontWeight.bold,
+                      //               color: Colors.amber),
+                      //         ),
+                      //       ],
+                      //     ),
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),

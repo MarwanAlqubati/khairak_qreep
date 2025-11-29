@@ -236,6 +236,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               }
                             });
                           } catch (e) {
+                            print(e);
                             setState(() => errorMessage =
                                 'حدث خطأ غير متوقع. حاول مرة أخرى.');
                           }

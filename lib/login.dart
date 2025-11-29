@@ -62,6 +62,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       });
     } catch (e) {
+      print(e);
       setState(() => errorMessage = 'حدث خطأ. حاول مرة أخرى.');
     }
   }
@@ -162,19 +163,19 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/reset_password');
-                        },
-                        child: const Text(
-                          "هل نسيت كلمة المرور؟",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.teal,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                      // TextButton(
+                      //   onPressed: () {
+                      //     Navigator.pushNamed(context, '/reset_password');
+                      //   },
+                      //   child: const Text(
+                      //     "هل نسيت كلمة المرور؟",
+                      //     style: TextStyle(
+                      //       fontSize: 16,
+                      //       color: Colors.teal,
+                      //       fontWeight: FontWeight.bold,
+                      //     ),
+                      //   ),
+                      // ),
                       TextButton(
                         onPressed: () {
                           Navigator.pushReplacementNamed(context, '/signup');

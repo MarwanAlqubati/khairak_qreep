@@ -11,6 +11,8 @@ class Message {
   final String content;
   final DateTime timestamp;
   final bool isRead;
+  final double? latitude;
+  final double? longitude;
 
   Message({
     required this.id,
@@ -21,6 +23,8 @@ class Message {
     required this.content,
     required this.timestamp,
     this.isRead = false,
+    this.latitude,
+    this.longitude,
   });
 
   factory Message.fromMap(Map<String, dynamic> map, String id) {
@@ -34,6 +38,12 @@ class Message {
         content: map['content'] ?? '',
         timestamp: _parseTimestamp(map['timestamp']),
         isRead: map['isRead'] ?? false,
+        latitude: map['latitude'] != null
+            ? (map['latitude'] as num).toDouble()
+            : null,
+        longitude: map['longitude'] != null
+            ? (map['longitude'] as num).toDouble()
+            : null,
       );
     } catch (e) {
       print('❌ Error converting message: $e');
@@ -45,6 +55,12 @@ class Message {
         type: MessageType.text,
         content: 'Error: Could not load message content.',
         timestamp: DateTime.now(),
+        latitude: map['latitude'] != null
+            ? (map['latitude'] as num).toDouble()
+            : null,
+        longitude: map['longitude'] != null
+            ? (map['longitude'] as num).toDouble()
+            : null,
       );
     }
   }
@@ -82,6 +98,8 @@ class Message {
       'content': content,
       'timestamp': Timestamp.fromDate(timestamp),
       'isRead': isRead,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 }

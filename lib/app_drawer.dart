@@ -95,7 +95,7 @@ class AppDrawer extends StatelessWidget {
               },
             ),
 
-          if (userRole == "متبرع" || userRole == "جمعية")
+          if (userRole == "متبرع")
             ListTile(
               leading: const Icon(Icons.volunteer_activism, color: Colors.teal),
               title: const Text(
@@ -104,10 +104,31 @@ class AppDrawer extends StatelessWidget {
               ),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("سيتم عرض التبرعات قريباً 💚"),
-                  ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => ConversationsListScreen(
+                            userRole: userRole,
+                          )),
+                );
+              },
+            ),
+
+          if (userRole == "جمعية")
+            ListTile(
+              leading: const Icon(Icons.volunteer_activism, color: Colors.teal),
+              title: const Text(
+                "تبرعاتي",
+                style: TextStyle(fontSize: 18, color: Colors.black87),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => ConversationsListScreen(
+                            userRole: userRole,
+                          )),
                 );
               },
             ),

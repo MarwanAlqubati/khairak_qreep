@@ -5,8 +5,13 @@ import 'package:exakhairak_qreep/models/message.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 // import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:path/path.dart' as p;
 
 import 'package:flutter/foundation.dart';
+import 'dart:io' show File;
+import 'dart:typed_data';
+
+import 'package:mime/mime.dart';
 
 class ChatService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -50,35 +55,39 @@ class ChatService {
     return newConversationRef.id;
   }
 
-  static Future<bool> sendImageMessageWeb({
+  /// رفع صورة (ويب) — يقبل bytes
+  static Future<void> sendImageMessageWeb({
     required String conversationId,
     required String senderId,
     required String receiverId,
-    required Uint8List imageData,
-    required String fileName, // 'chat_images/123.jpg'
-    String? contentType, // 'image/jpeg'
+    required Uint8List imageBytes,
+    required String fileName, // مثال: 'chat_images/12345.jpg'
+    String?
+        contentType, // يمكن اعطاؤه يدوياً، و إلا يكشف من البايتات أو الامتداد
   }) async {
-    try {
-      final ref = _storage.ref().child(fileName);
-      final metadata = SettableMetadata(contentType: contentType);
-      final uploadTask = ref.putData(imageData, metadata);
+    final ext = p.extension(fileName);
+    final detected = contentType ??
+        lookupMimeType(fileName, headerBytes: imageBytes) ??
+        lookupMimeType('file$ext') ??
+        'image/jpeg';
 
-      final TaskSnapshot snapshot = await uploadTask;
-      final String imageUrl = await snapshot.ref.getDownloadURL();
+    final metadata = SettableMetadata(contentType: detected);
 
-      await _sendMessage(
-        conversationId: conversationId,
-        senderId: senderId,
-        receiverId: receiverId,
-        type: MessageType.image,
-        content: imageUrl,
-      );
-
-      return true;
-    } catch (e, st) {
-      print('sendImageMessageWeb error: $e\n$st');
-      return false;
-    }
+    final ref = _storage.ref().child(fileName);
+    final uploadTask = ref.putData(imageBytes, metadata);
+    final snapshot = await uploadTask;
+    final imageUrl = await snapshot.ref.getDownloadURL();
+    print(imageUrl);
+    await _messages.add({
+      'conversationId': conversationId,
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'type': 'image',
+      'content': imageUrl,
+      'fileName': fileName,
+      'contentType': detected,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
   // إرسال رسالة نصية
@@ -97,32 +106,38 @@ class ChatService {
     );
   }
 
-  // إرسال صورة
+  /// رفع صورة (موبايل) — يقبل File
   static Future<void> sendImageMessage({
     required String conversationId,
     required String senderId,
     required String receiverId,
     required File imageFile,
+    String? fileName, // إن لم تُعطَ يُستخدم اسمٍ افتراضي
+    String? contentType, // يمكن إعطاؤه صراحة
   }) async {
-    try {
-      // رفع الصورة إلى Firebase Storage
-      final fileName =
-          'chat_images/${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final storageRef = _storage.ref().child(fileName);
-      final uploadTask = await storageRef.putFile(imageFile);
-      final imageUrl = await uploadTask.ref.getDownloadURL();
+    final name = fileName ??
+        'chat_images/${DateTime.now().millisecondsSinceEpoch}${p.extension(imageFile.path)}';
 
-      await _sendMessage(
-        conversationId: conversationId,
-        senderId: senderId,
-        receiverId: receiverId,
-        type: MessageType.image,
-        content: imageUrl,
-      );
-    } catch (e) {
-      print('Error uploading image: $e');
-      throw e;
-    }
+    // حدد contentType إن لم يعطَ
+    final detected =
+        contentType ?? lookupMimeType(imageFile.path) ?? 'image/jpeg';
+    final metadata = SettableMetadata(contentType: detected);
+
+    final ref = _storage.ref().child(name);
+    final uploadTask = ref.putFile(imageFile, metadata);
+    final snapshot = await uploadTask;
+    final imageUrl = await snapshot.ref.getDownloadURL();
+    print(imageUrl);
+    await _messages.add({
+      'conversationId': conversationId,
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'type': 'image',
+      'content': imageUrl,
+      'fileName': name,
+      'contentType': detected,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
   // إرسال موقع
@@ -253,9 +268,20 @@ class ChatService {
         .where('conversationId', isEqualTo: conversationId)
         // .orderBy('timestamp', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Message.fromMap(doc.data(), doc.id))
-            .toList());
+        .map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => Message.fromMap(doc.data(), doc.id))
+          .toList();
+
+      // تأكد تحويل timestamp إلى DateTime داخل Message ثم فرز:
+      list.sort((a, b) {
+        final at = a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bt = b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return at.compareTo(bt); // تصاعدياً
+      });
+
+      return list;
+    });
   }
 
   // الحصول على بيانات المستخدم الآخر في المحادثة

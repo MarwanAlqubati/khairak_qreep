@@ -1,4 +1,5 @@
 // lib/pages/donor_donation_other_page.dart
+import 'package:exakhairak_qreep/Services/chat_service.dart';
 import 'package:exakhairak_qreep/widgets/donation_shared.dart';
 import 'package:flutter/material.dart';
 import 'package:exakhairak_qreep/Services/request_service.dart';
@@ -83,6 +84,11 @@ class _DonorDonationOtherPageState extends State<DonorDonationOtherPage> {
 
       // ربط التبرع بالطلب (تحديث الطلب: donorid + satats)
       await RequestsService.assignDonorToRequest(req.reqid, user.uid, '1');
+      // إنشاء أو الحصول على المحادثة
+      await ChatService.getOrCreateConversation(
+        user.uid,
+        req.needid,
+      );
 
       // عرض إيصال جميل (BottomSheet)
       if (mounted) {

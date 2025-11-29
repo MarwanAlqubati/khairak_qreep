@@ -4,8 +4,15 @@ import 'package:exakhairak_qreep/Services/chat_service.dart';
 import 'package:exakhairak_qreep/models/app_user.dart';
 import 'package:exakhairak_qreep/models/message.dart';
 import 'package:flutter/material.dart';
+
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ChatScreen extends StatefulWidget {
   final String conversationId;
@@ -64,58 +71,159 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // يمكنك اظهار رسالة تطلب تفعيل خدمات الموقع
+      throw Exception('خدمة الموقع غير مفعّلة. الرجاء تفعيل GPS.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('تم رفض صلاحية الموقع.');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception(
+          'صلاحية الموقع مرفوضة نهائياً. الرجاء السماح من إعدادات الجهاز.');
+    }
+
+    // الآن نأخذ الموقع الحالي
+    return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+  }
+
   void _sendImageMessage() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    final XFile? picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
 
-    if (image == null) return;
+    if (picked == null) return;
 
-    if (kIsWeb) {
-      // Web: read bytes and call a web-specific uploader
-      final bytes = await image.readAsBytes();
-      final contentType = 'image/png'; // or detect dynamically if needed
-      try {
+    try {
+      if (kIsWeb) {
+        // WEB: اقرأ bytes، حدّد اسم ملف مناسب، و ارفع بوظيفة الويب
+        final bytes = await picked.readAsBytes();
+        final ext = p.extension(picked.name).isNotEmpty
+            ? p.extension(picked.name)
+            : '.jpg';
+        final fileName =
+            'chat_images/${DateTime.now().millisecondsSinceEpoch}$ext';
+
         await ChatService.sendImageMessageWeb(
           conversationId: widget.conversationId,
           senderId: widget.currentUserId,
           receiverId: widget.otherUser.uid,
-          imageData: bytes,
-          contentType: contentType,
-          fileName: 'chat_images/${DateTime.now().millisecondsSinceEpoch}.jpg',
+          imageBytes: bytes,
+          fileName: fileName,
+          // contentType: 'image/png', // اختياري: إذا تبي إجبار نوع معين
         );
-      } catch (e) {
-        print('Upload failed (web): $e');
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('فشل رفع الصورة على الويب')));
-      }
-    } else {
-      // Mobile: convert to File and use existing method
-      final file = File(image.path);
-      try {
+      } else {
+        // MOBILE: استخدم File ورفع عبر putFile
+        final file = File(picked.path);
+        final ext = p.extension(file.path);
+        final fileName =
+            'chat_images/${DateTime.now().millisecondsSinceEpoch}$ext';
+
         await ChatService.sendImageMessage(
           conversationId: widget.conversationId,
           senderId: widget.currentUserId,
           receiverId: widget.otherUser.uid,
           imageFile: file,
+          fileName: fileName,
+          // contentType: 'image/jpeg', // اختياري
         );
-      } catch (e) {
-        print('Upload failed (mobile): $e');
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('فشل رفع الصورة')));
+      }
+    } catch (e, st) {
+      debugPrint('❌ Image upload failed: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل رفع الصورة: ${e.toString()}')),
+        );
       }
     }
   }
 
-  void _sendLocationMessage() {
-    // يمكنك استخدام geolocator package للحصول على الموقع
-    // هذا مثال بموقع افتراضي
-    ChatService.sendLocationMessage(
+  void _sendLocationMessage() async {
+    // إنشاء رسالة مؤقتة للعرض الفوري
+    final tempMessage = Message(
+      id: 'temp_loc_${DateTime.now().millisecondsSinceEpoch}',
       conversationId: widget.conversationId,
       senderId: widget.currentUserId,
       receiverId: widget.otherUser.uid,
-      latitude: 24.7136,
-      longitude: 46.6753,
+      type: MessageType.location,
+      content: 'جارٍ مشاركة الموقع...', // مؤقت
+      timestamp: DateTime.now(),
+      latitude: null,
+      longitude: null,
     );
+
+    setState(() {
+      _localMessages.add(tempMessage);
+    });
+    _scrollToBottom();
+
+    try {
+      final pos = await _determinePosition();
+
+      // تحديث الرسالة المؤقتة محليًا (اختياري)
+      setState(() {
+        final idx = _localMessages.indexWhere((m) => m.id == tempMessage.id);
+        if (idx != -1) {
+          _localMessages[idx] = Message(
+            id: tempMessage.id,
+            conversationId: tempMessage.conversationId,
+            senderId: tempMessage.senderId,
+            receiverId: tempMessage.receiverId,
+            type: MessageType.location,
+            content: '${pos.latitude},${pos.longitude}',
+            timestamp: DateTime.now(),
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+          );
+        }
+      });
+      _scrollToBottom();
+
+      // أرسل للمخدم — تأكّد أن ChatService.sendLocationMessage يقبل lat/lng
+      await ChatService.sendLocationMessage(
+        conversationId: widget.conversationId,
+        senderId: widget.currentUserId,
+        receiverId: widget.otherUser.uid,
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+      );
+
+      // بعد نجاح الإرسال قد تعتمد على Stream لتحديث الرسائل الحقيقية (فيمكان حذف temp msg إن احتجت)
+    } catch (e) {
+      // إزالة الـ temp message أو تحديثه لإظهار فشل
+      setState(() {
+        final idx = _localMessages.indexWhere((m) => m.id == tempMessage.id);
+        if (idx != -1) {
+          _localMessages[idx] = Message(
+            id: tempMessage.id,
+            conversationId: tempMessage.conversationId,
+            senderId: tempMessage.senderId,
+            receiverId: tempMessage.receiverId,
+            type: MessageType.text,
+            content: 'فشل مشاركة الموقع: ${e.toString()}',
+            timestamp: DateTime.now(),
+          );
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل الحصول على الموقع: ${e.toString()}')),
+      );
+    }
   }
 
   void _scrollToBottom() {
@@ -297,56 +405,86 @@ class MessageBubble extends StatelessWidget {
           color: isMe ? Colors.teal : Colors.grey[300],
           borderRadius: BorderRadius.circular(16),
         ),
-        child: _buildMessageContent(),
+        child: _buildMessageContent(context),
       ),
     );
   }
 
-  Widget _buildMessageContent() {
+  Widget _buildMessageContent(BuildContext context) {
     switch (message.type) {
       case MessageType.image:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('📷 صورة', style: TextStyle(color: _getTextColor())),
-            SizedBox(height: 4),
-            Image.network(
-              message.content,
+        final imageUrl = message.content; // full image URL
+        // final thumbUrl = message.thumbnailUrl; // قد تكون null
+        return InkWell(
+          onTap: () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) {
+              return Scaffold(
+                appBar: AppBar(backgroundColor: Colors.black),
+                body: Center(
+                  child: Hero(
+                    tag: message.id,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      progressIndicatorBuilder: (c, url, progress) =>
+                          CircularProgressIndicator(value: progress.progress),
+                      errorWidget: (c, url, err) => Icon(Icons.broken_image),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                backgroundColor: Colors.black,
+              );
+            }));
+          },
+          child: Hero(
+            tag: message.id,
+            child: CachedNetworkImage(
+              // imageUrl: thumbUrl ?? imageUrl,
+              imageUrl: imageUrl,
+              placeholder: (c, url) => Container(
+                width: 200,
+                height: 150,
+                color: Colors.grey[300],
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (c, url, err) => SizedBox(
+                width: 200,
+                height: 150,
+                child: Center(child: Text('فشل تحميل الصورة')),
+              ),
               width: 200,
               height: 150,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return SizedBox(
-                  width: 200,
-                  height: 150,
-                  child: Center(
-                      child: CircularProgressIndicator(
-                          value: progress.expectedTotalBytes != null
-                              ? progress.cumulativeBytesLoaded /
-                                  progress.expectedTotalBytes!
-                              : null)),
-                );
-              },
-              errorBuilder: (c, e, s) {
-                return SizedBox(
-                  width: 200,
-                  height: 150,
-                  child: Center(child: Text('فشل تحميل الصورة')),
-                );
-              },
-            )
-          ],
+            ),
+          ),
         );
       case MessageType.location:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.location_on, color: _getTextColor()),
-            SizedBox(width: 4),
-            Text('📍 موقع', style: TextStyle(color: _getTextColor())),
-          ],
+        final lat = message.latitude;
+        final lng = message.longitude;
+        final label =
+            lat != null && lng != null ? '$lat, $lng' : message.content;
+        return InkWell(
+          onTap: () async {
+            if (lat != null && lng != null) {
+              final googleUrl = Uri.parse(
+                  'https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+              if (await canLaunchUrl(googleUrl)) {
+                await launchUrl(googleUrl);
+              }
+            }
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.location_on, color: _getTextColor()),
+              SizedBox(width: 6),
+              Flexible(
+                  child: Text('📍 موقع: $label',
+                      style: TextStyle(color: _getTextColor()))),
+            ],
+          ),
         );
+
       default:
         return Text(
           message.content,

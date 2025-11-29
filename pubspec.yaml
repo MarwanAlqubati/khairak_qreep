@@ -13,12 +13,15 @@ dependencies:
   intl:
   firebase_core:
   firebase_auth:
+  # cloud_functions:
   cloud_firestore:
   firebase_storage:
   image_picker:
   geolocator:
   url_launcher:
   provider:
+  mime:
+  cached_network_image:
 
 dev_dependencies:
   flutter_test:
