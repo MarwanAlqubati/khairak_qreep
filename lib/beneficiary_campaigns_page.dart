@@ -1,6 +1,11 @@
+// lib/pages/beneficiary_campaigns_page.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:exakhairak_qreep/Services/charity_service.dart';
+import 'package:exakhairak_qreep/Services/registration_service.dart';
 import 'package:exakhairak_qreep/models/app_Charity.dart';
+import 'package:exakhairak_qreep/models/app_campaign_registration.dart';
 import 'beneficiary_page.dart';
 
 class BeneficiaryCampaignsPage extends StatefulWidget {
@@ -13,11 +18,14 @@ class BeneficiaryCampaignsPage extends StatefulWidget {
 
 class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
   late Future<List<AppCharity>> _futureCampaigns;
+  final Set<String> _registeredCampaignIds = {};
+  bool _loadingRegistered = true;
 
   @override
   void initState() {
     super.initState();
     _loadCampaigns();
+    _loadRegisteredCampaigns(); // حمل الحملات المسجلة للمستخدم
   }
 
   void _loadCampaigns() {
@@ -26,12 +34,34 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
     });
   }
 
-  // خريطة لتحويل اسم الأيقونة إلى IconData
+  Future<void> _loadRegisteredCampaigns() async {
+    setState(() {
+      _loadingRegistered = true;
+    });
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // لم يسجل الدخول -> لا شيء
+      setState(() {
+        _registeredCampaignIds.clear();
+        _loadingRegistered = false;
+      });
+      return;
+    }
+
+    final ids =
+        await RegistrationService.getRegisteredCampaignIdsForUser(user.uid);
+    setState(() {
+      _registeredCampaignIds
+        ..clear()
+        ..addAll(ids);
+      _loadingRegistered = false;
+    });
+  }
+
   IconData _iconFromName(String? name) {
     if (name == null) return Icons.campaign;
-
     final n = name.toLowerCase();
-
     if (n.contains('school')) return Icons.school;
     if (n.contains('ac_unit')) return Icons.ac_unit;
     if (n.contains('fastfood')) return Icons.fastfood;
@@ -44,29 +74,108 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
     if (n.contains('campaign')) return Icons.campaign;
     if (n.contains('food') || n.contains('bank')) return Icons.food_bank;
     if (n.contains('checkroom')) return Icons.checkroom;
-
-    // لو الاسم كان نتيجة IconData.toString() نبحث عن كلمة مفتاحية
-    if (n.contains('school')) return Icons.school;
-
-    // افتراضي
     return Icons.campaign;
   }
 
-  Future<void> _onRegisterTap(String title) async {
-    // يمكن هنا إضافة منطق تسجيل حقيقي في حال أردت تخزين التسجيل
-    // محاكاة انتظار ثم اظهار رسالة نجاح
+  Future<Map<String, String>> _getCurrentUserInfo() async {
+    // return { 'userId': 'xxx', 'userName': 'YYY' }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return {'userId': '', 'userName': ''};
+
+    String userName = user.displayName ?? '';
+
+    // لو الاسم غير موجود في profile، حاول جلبه من collection users (اختياري)
+    if (userName.isEmpty) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final data = doc.data();
+        if (data != null) {
+          userName = (data['username'] ?? data['name'] ?? '') as String;
+        }
+      } catch (_) {
+        // تجاهل الخطأ وابقِ displayName كـ ''
+      }
+    }
+
+    // fallback إلى البريد إن لم يوجد اسم
+    if (userName.isEmpty) userName = user.email ?? 'مستخدم';
+
+    return {'userId': user.uid, 'userName': userName};
+  }
+
+  Future<void> _onRegisterTap(AppCharity c) async {
+    final id = c.uid ?? '';
+    final title = c.titlle ?? 'بدون عنوان';
+    if (id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('خطأ: معرّف الحملة غير موجود')),
+      );
+      return;
+    }
+
+    final userInfo = await _getCurrentUserInfo();
+    final userId = userInfo['userId']!;
+    final userName = userInfo['userName']!;
+
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى تسجيل الدخول أولاً')),
+      );
+      return;
+    }
+
+    // تحقق سريع محلي إن كان موجوداً بالفعل في ال set
+    if (_registeredCampaignIds.contains(id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('أنت مسجل بالفعل في "$title"')),
+      );
+      return;
+    }
+
+    // اظهار مؤشر تحميل
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (mounted) {
-      Navigator.pop(context); // close loading dialog
+
+    try {
+      await RegistrationService.registerUser(
+        campaignId: id,
+        campaignTitle: title,
+        userId: userId,
+        userName: userName,
+      );
+
+      // اغلاق الـ dialog
+      if (mounted) Navigator.pop(context);
+
+      // حدث الواجهة: اضف الـ id للمجموعة
+      setState(() {
+        _registeredCampaignIds.add(id);
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('تم التسجيل في $title بنجاح ✅'),
-            backgroundColor: Colors.teal),
+        SnackBar(content: Text('تم التسجيل في "$title" بنجاح ✅')),
+      );
+    } on Exception catch (e) {
+      if (mounted) Navigator.pop(context); // اغلاق الـ dialog
+      if (e.toString().contains('already_registered')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('أنت مسجل بالفعل في "$title"')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء التسجيل: ${e.toString()}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('حدث خطأ: ${e.toString()}')),
       );
     }
   }
@@ -115,7 +224,6 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
 
                 const SizedBox(height: 20),
 
-                // العنوان
                 const Align(
                   alignment: Alignment.centerRight,
                   child: Text(
@@ -130,7 +238,6 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
 
                 const SizedBox(height: 20),
 
-                // المحتوى: FutureBuilder مع RefreshIndicator
                 Expanded(
                   child: FutureBuilder<List<AppCharity>>(
                     future: _futureCampaigns,
@@ -140,7 +247,11 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
                       }
                       if (snapshot.hasError) {
                         return RefreshIndicator(
-                          onRefresh: () async => _loadCampaigns(),
+                          onRefresh: () async {
+                            _loadCampaigns();
+                            await _futureCampaigns;
+                            await _loadRegisteredCampaigns();
+                          },
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
@@ -159,7 +270,11 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
                       final campaigns = snapshot.data ?? [];
                       if (campaigns.isEmpty) {
                         return RefreshIndicator(
-                          onRefresh: () async => _loadCampaigns(),
+                          onRefresh: () async {
+                            _loadCampaigns();
+                            await _futureCampaigns;
+                            await _loadRegisteredCampaigns();
+                          },
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: const [
@@ -175,6 +290,7 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
                         onRefresh: () async {
                           _loadCampaigns();
                           await _futureCampaigns;
+                          await _loadRegisteredCampaigns();
                         },
                         child: ListView.builder(
                           itemCount: campaigns.length,
@@ -185,6 +301,10 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
                             final description = c.description ?? '';
                             final charityName = c.charityname ?? '';
                             final dateChar = c.datecharity ?? '';
+                            final id = c.uid ?? '';
+
+                            final isRegistered =
+                                _registeredCampaignIds.contains(id);
 
                             return Card(
                               margin: const EdgeInsets.symmetric(vertical: 10),
@@ -232,15 +352,20 @@ class _BeneficiaryCampaignsPageState extends State<BeneficiaryCampaignsPage> {
                                     Align(
                                       alignment: Alignment.centerLeft,
                                       child: ElevatedButton(
-                                        onPressed: () => _onRegisterTap(title),
+                                        onPressed: isRegistered
+                                            ? null
+                                            : () => _onRegisterTap(c),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.teal,
+                                          backgroundColor: isRegistered
+                                              ? Colors.grey
+                                              : Colors.teal,
                                           shape: RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.circular(8)),
                                         ),
-                                        child: const Text("تسجيل",
-                                            style: TextStyle(
+                                        child: Text(
+                                            isRegistered ? "مسجل" : "تسجيل",
+                                            style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 15)),
                                       ),
